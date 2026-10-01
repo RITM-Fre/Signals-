@@ -1,0 +1,2640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Signal — Universal Encoder & Cipher Console</title>
+<meta name="description" content="Encode, decode and cipher text with Base64, Hex, Morse, Caesar, Vigenère, AES, RSA, hashing and much more — all locally in your browser.">
+<meta name="theme-color" content="#070b12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='82'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: dark;
+    --void:#070b12;
+    --panel:#0f1620;
+    --panel-2:#131c28;
+    --mark:#ffa94d;
+    --mark-soft:rgba(255,169,77,.14);
+    --space:#7c6cff;
+    --space-soft:rgba(124,108,255,.14);
+    --paper:#f1ede4;
+    --muted:#90a0b2;
+    --dim:#5f6e80;
+    --border: rgba(241,237,228,0.1);
+    --border-strong: rgba(241,237,228,0.18);
+    --radius: 16px;
+    --radius-sm: 11px;
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --header-h: 68px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--void);
+    color:var(--paper);
+    font-family:var(--font-display);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body.no-three{ background: radial-gradient(ellipse at 50% 0%, #121a2c 0%, #070b12 62%); }
+  body.no-three #bg-canvas{ display:none; }
+
+  /* ---------- background layers ---------- */
+  #bg-canvas{ position:fixed; inset:0; width:100%; height:100%; z-index:0; display:block; }
+  .vignette{ position:fixed; inset:0; z-index:1; pointer-events:none;
+    background: radial-gradient(ellipse 70% 60% at 50% 38%, transparent 45%, rgba(5,8,14,.72) 100%); }
+  .scanlines{ position:fixed; inset:0; z-index:2; pointer-events:none; opacity:.5; mix-blend-mode:overlay;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 3px); }
+
+  /* ---------- header ---------- */
+  .site-header{
+    position:sticky; top:0; z-index:30;
+    height:var(--header-h);
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:0 22px;
+    background:rgba(9,13,20,.82);
+    backdrop-filter:blur(22px) saturate(150%);
+    -webkit-backdrop-filter:blur(22px) saturate(150%);
+    border-bottom:1px solid var(--border);
+  }
+  .header-brand{ display:flex; align-items:center; gap:9px; cursor:pointer; user-select:none; flex:none; }
+  .header-brand .brand-mark{ font-family:var(--font-mono); color:var(--mark); font-size:17px;
+    filter: drop-shadow(0 0 8px rgba(255,169,77,.55)); }
+  .header-brand h1{ font-size:20px; margin:0; font-weight:600; letter-spacing:-.01em; }
+
+  .header-nav{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .nav-btn{
+    font-family:var(--font-display); font-size:13.5px; font-weight:500;
+    padding:8px 14px; border-radius:9px; border:1px solid transparent;
+    background:transparent; color:var(--muted); cursor:pointer;
+    transition:color .18s, background .18s, border-color .18s;
+    touch-action:manipulation; white-space:nowrap;
+  }
+  .nav-btn:hover{ color:var(--paper); background:rgba(255,255,255,.05); }
+  .nav-btn.active{ color:var(--paper); background:linear-gradient(135deg, var(--mark-soft), var(--space-soft));
+    border-color:var(--border-strong); }
+  .nav-btn:focus-visible{ outline:2px solid var(--mark); outline-offset:2px; }
+
+  /* "other" dropdown */
+  .nav-dropdown{ position:relative; }
+  .dropdown-panel{
+    position:absolute; top:calc(100% + 8px); right:0;
+    min-width:220px; max-height:min(62vh, 460px); overflow-y:auto;
+    background:rgba(13,19,28,.97);
+    border:1px solid var(--border-strong); border-radius:13px;
+    padding:6px; box-shadow:0 24px 50px -18px rgba(0,0,0,.8);
+    display:none; z-index:40;
+  }
+  .dropdown-panel.open{ display:block; }
+  .dropdown-panel::-webkit-scrollbar{ width:8px; }
+  .dropdown-panel::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.12); border-radius:4px; }
+  .dropdown-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width:100%; text-align:left; font-family:var(--font-display); font-size:13px;
+    padding:9px 12px; border-radius:8px; border:none; background:transparent;
+    color:var(--muted); cursor:pointer; transition:.16s;
+  }
+  .dropdown-item:hover{ background:rgba(255,255,255,.06); color:var(--paper); }
+  .dropdown-item.active{ color:var(--mark); background:var(--mark-soft); }
+  .dropdown-item .dd-tag{ font-family:var(--font-mono); font-size:10.5px; color:var(--dim); }
+  .dropdown-sep{ height:1px; background:var(--border); margin:5px 8px; }
+
+  /* ---------- layout ---------- */
+  .stage{ position:relative; z-index:3; min-height:calc(100dvh - var(--header-h));
+    display:flex; align-items:flex-start; justify-content:center;
+    padding: 32px 18px 48px;
+    padding-top: max(32px, env(safe-area-inset-top));
+    padding-bottom: max(48px, env(safe-area-inset-bottom)); }
+  .console{ width:100%; max-width:760px; }
+
+  /* ---------- panels ---------- */
+  .panel{ background:linear-gradient(180deg, rgba(16,23,33,.85), rgba(9,13,20,.92));
+    border:1px solid var(--border); border-radius:var(--radius); padding:22px;
+    backdrop-filter:blur(20px) saturate(140%); -webkit-backdrop-filter:blur(20px) saturate(140%);
+    box-shadow:0 30px 60px -24px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.04);
+    position:relative; overflow:hidden; }
+  .panel.is-hidden{ display:none; }
+  .panel::before{ content:''; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(100deg, transparent 42%, rgba(255,169,77,.14) 50%, transparent 58%);
+    transform:translateX(-130%); }
+  .panel.pulse::before{ animation:sweep .7s ease; }
+  @keyframes sweep{ to{ transform:translateX(130%); } }
+  @media (prefers-reduced-motion:reduce){ .panel.pulse::before{ animation:none; } }
+
+  /* ---------- home page ---------- */
+  .home-hero{ text-align:center; padding:14px 0 6px; }
+  .home-hero .brand-mark{ font-family:var(--font-mono); color:var(--mark); font-size:30px;
+    filter: drop-shadow(0 0 14px rgba(255,169,77,.6)); display:block; margin-bottom:6px; }
+  .home-hero h2{ font-size:clamp(30px,6vw,46px); margin:0 0 10px; font-weight:700; letter-spacing:-.02em; }
+  .home-hero p{ color:var(--muted); font-size:15.5px; line-height:1.6; max-width:52ch; margin:0 auto 22px; }
+  .home-cta{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:8px; }
+  .home-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+    gap:12px; margin-top:26px; }
+  .home-card{ background:rgba(255,255,255,.03); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:15px 16px; text-align:left; }
+  .home-card h4{ margin:0 0 6px; font-size:14.5px; font-weight:600; color:var(--paper); }
+  .home-card p{ margin:0; font-size:13px; line-height:1.5; color:var(--muted); }
+  .home-card .card-icon{ font-family:var(--font-mono); color:var(--mark); font-size:13px; display:block; margin-bottom:7px; }
+
+  /* ---------- about page ---------- */
+  .about-block{ margin-bottom:26px; }
+  .about-block h3{ font-size:18px; margin:0 0 10px; font-weight:600; }
+  .about-block p{ color:var(--muted); font-size:14px; line-height:1.65; margin:0 0 12px; }
+  .about-list{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .about-list li{ display:flex; gap:10px; font-size:13.5px; color:var(--muted); line-height:1.5; }
+  .about-list li::before{ content:'▸'; color:var(--mark); flex:none; }
+  .x-link{ display:inline-flex; align-items:center; gap:9px; padding:11px 18px;
+    border-radius:10px; border:1px solid var(--border-strong); background:rgba(255,255,255,.04);
+    color:var(--paper); text-decoration:none; font-size:14px; font-weight:500;
+    transition:.2s; }
+  .x-link:hover{ background:rgba(255,255,255,.08); border-color:var(--mark); }
+  .x-link svg{ width:17px; height:17px; fill:currentColor; }
+
+  /* ---------- form controls ---------- */
+  .mode-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; flex-wrap:wrap; }
+  .mode-switch{ display:flex; gap:6px; background:rgba(255,255,255,.04); border:1px solid var(--border);
+    border-radius:11px; padding:3px; }
+  .mode-btn{ border:none; background:transparent; color:var(--muted); padding:8px 15px; border-radius:8px;
+    font-family:var(--font-display); font-size:13.5px; cursor:pointer; transition:.2s; touch-action:manipulation; }
+  .mode-btn.active{ background:var(--mark); color:#1c1304; font-weight:600; }
+  .mode-btn:focus-visible{ outline:2px solid var(--space); outline-offset:2px; }
+
+  .field-label{ display:block; font-size:12.5px; color:var(--muted); margin:16px 0 6px; }
+  .field{ width:100%; resize:vertical; min-height:92px; background:rgba(0,0,0,.3); border:1px solid var(--border);
+    border-radius:11px; padding:12px 14px; color:var(--paper); font-family:var(--font-mono); font-size:15.5px;
+    line-height:1.5; outline:none; transition:border-color .2s ease, box-shadow .2s ease; }
+  .field:focus{ border-color:rgba(255,169,77,.55); box-shadow:0 0 0 3px rgba(255,169,77,.12); }
+  .field[readonly]{ opacity:.92; }
+  .field:disabled{ opacity:.45; }
+  .field-sm{ min-height:52px; }
+
+  .action-row{ display:flex; gap:10px; margin:14px 0 2px; flex-wrap:wrap; }
+  .btn{ font-family:var(--font-display); font-size:13.5px; border-radius:10px; padding:10px 16px; cursor:pointer;
+    border:1px solid var(--border); background:rgba(255,255,255,.03); color:var(--paper); transition:.2s;
+    touch-action:manipulation; min-height:40px; }
+  .btn:hover{ border-color:rgba(255,255,255,.24); }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--mark); outline-offset:2px; }
+  .btn-ghost{ background:transparent; }
+  .btn-small{ padding:8px 13px; font-size:13px; min-height:36px; }
+  .btn-swap{ color:var(--space); border-color:rgba(124,108,255,.3); }
+  .btn-primary{ background:var(--mark); color:#1c1304; border-color:transparent; font-weight:600; }
+
+  .result-row{ display:flex; align-items:center; justify-content:space-between; margin-top:9px; gap:10px; flex-wrap:wrap; }
+  .hint{ font-size:12.5px; color:var(--muted); }
+  .hint.error{ color:#ff8d8d; }
+  .btn-group{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .key-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px; }
+  @media (max-width:520px){ .key-row{ grid-template-columns:1fr; } }
+
+  .lang-badge{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);
+    background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:999px; padding:7px 13px; }
+  .lang-dot{ width:8px; height:8px; min-width:8px; border-radius:50%; background:var(--muted); transition:.3s; }
+  .lang-dot.fingilish{ background:var(--mark); box-shadow:0 0 10px rgba(255,169,77,.75); }
+  .lang-dot.english{ background:var(--space); box-shadow:0 0 10px rgba(124,108,255,.75); }
+  .lang-dot.persian{ background:#5ee39b; box-shadow:0 0 10px rgba(94,227,155,.75); }
+
+  .normalized-row{ margin-top:16px; }
+  .normalized-text{ font-family:var(--font-mono); font-size:14px; letter-spacing:.03em; white-space:pre-wrap;
+    word-break:break-word; background:rgba(0,0,0,.24); border:1px dashed var(--border); border-radius:11px;
+    padding:11px 13px; color:var(--mark); }
+
+  .morse-lamp{ width:11px; height:11px; border-radius:50%; background:#3a2e1c; display:inline-block;
+    box-shadow:inset 0 0 4px rgba(0,0,0,.6); transition:background .06s linear, box-shadow .06s linear;
+    vertical-align:middle; margin-right:2px; }
+  .morse-lamp.lit{ background:var(--mark); box-shadow:0 0 16px 4px rgba(255,169,77,.9); }
+
+  .file-row{ margin-bottom:4px; }
+  .file-drop{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted);
+    border:1px dashed var(--border); border-radius:11px; padding:10px 13px; cursor:pointer; transition:.2s; }
+  .file-drop.drag{ border-color:var(--mark); color:var(--mark); background:rgba(255,169,77,.06); }
+  .file-drop svg{ flex:none; opacity:.8; }
+  .file-notice{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px;
+    color:var(--mark); background:rgba(255,169,77,.08); border:1px solid rgba(255,169,77,.25);
+    border-radius:11px; padding:9px 13px; margin-top:9px; }
+  .file-notice button{ background:none; border:none; color:var(--mark); font-size:16px; cursor:pointer; line-height:1; padding:2px 4px; }
+
+  .image-preview{ margin-top:14px; border-radius:11px; overflow:hidden; border:1px solid var(--border); background:#000; }
+  .image-preview img{ display:block; width:100%; max-height:260px; object-fit:contain; }
+
+  /* ---------- footer ---------- */
+  .site-footer{
+    position:relative; z-index:3;
+    border-top:1px solid var(--border);
+    background:rgba(9,13,20,.7);
+    backdrop-filter:blur(14px);
+    padding:26px 22px 30px;
+    margin-top:40px;
+  }
+  .footer-inner{ max-width:760px; margin:0 auto; display:flex; flex-wrap:wrap;
+    gap:18px 40px; align-items:flex-start; justify-content:space-between; }
+  .footer-brand .brand-mark{ font-family:var(--font-mono); color:var(--mark); font-size:15px; }
+  .footer-brand p{ margin:6px 0 0; font-size:12.5px; color:var(--muted); max-width:34ch; line-height:1.55; }
+  .footer-cols{ display:flex; gap:40px; flex-wrap:wrap; }
+  .footer-col h5{ margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); }
+  .footer-col a, .footer-col button{ display:block; background:none; border:none; padding:0;
+    font-family:var(--font-display); font-size:13px; color:var(--muted); text-decoration:none;
+    cursor:pointer; margin-bottom:6px; text-align:left; transition:.18s; }
+  .footer-col a:hover, .footer-col button:hover{ color:var(--mark); }
+  .footer-note{ margin-top:22px; padding-top:16px; border-top:1px solid var(--border);
+    text-align:center; font-size:12px; color:var(--dim); }
+
+  /* ---------- toast ---------- */
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%,14px); background:rgba(16,23,33,.96);
+    border:1px solid var(--border); color:var(--paper); padding:11px 18px; border-radius:11px; font-size:13.5px;
+    opacity:0; pointer-events:none; transition:.25s ease; z-index:60; max-width:90vw; text-align:center; }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  @media (max-width:640px){
+    .site-header{ padding:0 14px; gap:8px; }
+    .header-brand h1{ font-size:17px; }
+    .nav-btn{ padding:7px 10px; font-size:12.5px; }
+    .panel{ padding:17px; }
+    .mode-row{ flex-direction:column; align-items:stretch; gap:10px; }
+    .lang-badge{ justify-content:center; }
+    .action-row .btn{ flex:1; }
+    .footer-inner{ flex-direction:column; gap:24px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<!-- ==================== HEADER ==================== -->
+<header class="site-header">
+  <div class="header-brand" data-nav="home" role="button" tabindex="0">
+    <span class="brand-mark" aria-hidden="true">··−</span>
+    <h1>Signal</h1>
+  </div>
+
+  <nav class="header-nav" aria-label="Main navigation">
+    <button class="nav-btn active" data-nav="home" type="button">Home</button>
+    <button class="nav-btn" data-nav="base64" type="button">Base64</button>
+    <button class="nav-btn" data-nav="morse" type="button">Morse</button>
+    <button class="nav-btn" data-nav="hex" type="button">Hex</button>
+    <button class="nav-btn" data-nav="caesar" type="button">Caesar</button>
+    <div class="nav-dropdown">
+      <button class="nav-btn" id="other-toggle" type="button" aria-haspopup="true" aria-expanded="false">Other ▾</button>
+      <div class="dropdown-panel" id="other-panel" role="menu">
+        <button class="dropdown-item" data-nav="url" type="button">URL Encoding <span class="dd-tag">encode</span></button>
+        <button class="dropdown-item" data-nav="html" type="button">HTML Entity <span class="dd-tag">encode</span></button>
+        <button class="dropdown-item" data-nav="binary" type="button">Binary <span class="dd-tag">encode</span></button>
+        <button class="dropdown-item" data-nav="unicode" type="button">Unicode Escapes <span class="dd-tag">encode</span></button>
+        <button class="dropdown-item" data-nav="rot13" type="button">ROT13 <span class="dd-tag">cipher</span></button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" data-nav="vigenere" type="button">Vigenère <span class="dd-tag">key</span></button>
+        <button class="dropdown-item" data-nav="atbash" type="button">Atbash <span class="dd-tag">cipher</span></button>
+        <button class="dropdown-item" data-nav="affine" type="button">Affine <span class="dd-tag">key</span></button>
+        <button class="dropdown-item" data-nav="playfair" type="button">Playfair <span class="dd-tag">key</span></button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" data-nav="xor" type="button">XOR <span class="dd-tag">key</span></button>
+        <button class="dropdown-item" data-nav="aes" type="button">AES <span class="dd-tag">key</span></button>
+        <button class="dropdown-item" data-nav="des" type="button">DES / 3DES <span class="dd-tag">key</span></button>
+        <button class="dropdown-item" data-nav="chacha" type="button">ChaCha20 <span class="dd-tag">key</span></button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" data-nav="rsa" type="button">RSA <span class="dd-tag">keypair</span></button>
+        <button class="dropdown-item" data-nav="ecc" type="button">ECC <span class="dd-tag">keypair</span></button>
+        <button class="dropdown-item" data-nav="dh" type="button">Diffie-Hellman <span class="dd-tag">keypair</span></button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" data-nav="hash" type="button">Hashing (MD5, SHA…) <span class="dd-tag">one-way</span></button>
+        <button class="dropdown-item" data-nav="bcrypt" type="button">bcrypt / scrypt / Argon2 <span class="dd-tag">password</span></button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" data-nav="compression" type="button">Compression (gzip) <span class="dd-tag">binary</span></button>
+        <button class="dropdown-item" data-nav="steganography" type="button">Steganography <span class="dd-tag">image</span></button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" data-nav="about" type="button">About &amp; Contact <span class="dd-tag">info</span></button>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ==================== MAIN ==================== -->
+<div class="stage">
+  <main class="console">
+
+    <!-- ========== HOME ========== -->
+    <section class="panel" id="panel-home" data-panel="home">
+      <div class="home-hero">
+        <span class="brand-mark">··−</span>
+        <h2>Signal Console</h2>
+        <p>All your encoding, cipher and hashing tools in one place — running entirely in your browser. Nothing is ever uploaded.</p>
+        <div class="home-cta">
+          <button class="btn btn-primary" data-nav="base64" type="button">Start with Base64 →</button>
+          <button class="btn" data-nav="morse" type="button">Try Morse</button>
+        </div>
+      </div>
+      <div class="home-grid">
+        <div class="home-card"><span class="card-icon">01</span><h4>Encoders</h4><p>Base64, Hex, Base32/58/85, URL, HTML entities, Binary, Unicode escapes.</p></div>
+        <div class="home-card"><span class="card-icon">02</span><h4>Classical Ciphers</h4><p>Caesar, ROT13, Vigenère, Atbash, Affine, Playfair, Hill.</p></div>
+        <div class="home-card"><span class="card-icon">03</span><h4>Modern Ciphers</h4><p>XOR, AES, DES/3DES, ChaCha20 with key support.</p></div>
+        <div class="home-card"><span class="card-icon">04</span><h4>Asymmetric</h4><p>RSA, ECC, Diffie-Hellman keypair generation &amp; operations.</p></div>
+        <div class="home-card"><span class="card-icon">05</span><h4>Hashing</h4><p>MD5, SHA-1, SHA-256/512, bcrypt, scrypt, Argon2.</p></div>
+        <div class="home-card"><span class="card-icon">06</span><h4>Extras</h4><p>Morse with Fingilish &amp; Persian, gzip compression, steganography.</p></div>
+      </div>
+    </section>
+
+    <!-- ========== BASE64 ========== -->
+    <section class="panel is-hidden" id="panel-base64" data-panel="base64">
+      <div class="mode-row">
+        <div class="mode-switch" role="tablist" aria-label="Direction">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+      </div>
+      <div class="file-row" id="b64-file-row">
+        <label class="file-drop" id="file-drop-b64" for="file-input-b64">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          <span>Drop a file here, or click to choose one to encode</span>
+        </label>
+        <input type="file" id="file-input-b64" hidden>
+        <div class="file-notice" id="b64-file-notice" hidden>
+          <span class="file-notice-text" id="b64-file-notice-text"></span>
+          <button type="button" id="b64-file-clear-btn" title="Remove file" aria-label="Remove file">✕</button>
+        </div>
+      </div>
+      <label class="field-label" for="b64-input">Input</label>
+      <textarea id="b64-input" class="field" placeholder="Type or paste anything to encode…" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="b64-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="b64-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="b64-output">Result</label>
+      <textarea id="b64-output" class="field" readonly placeholder="Your result will appear here…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="b64-hint"></span>
+        <button class="btn btn-ghost btn-small" id="b64-copy" type="button">Copy</button>
+      </div>
+      <div class="image-preview" id="b64-image-preview" hidden>
+        <img id="b64-image" alt="Decoded image preview">
+      </div>
+    </section>
+
+    <!-- ========== MORSE ========== -->
+    <section class="panel is-hidden" id="panel-morse" data-panel="morse">
+      <div class="mode-row">
+        <div class="mode-switch" role="tablist" aria-label="Direction">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+        <div class="lang-badge">
+          <span class="lang-dot" id="lang-dot"></span>
+          <span id="lang-badge-text">Start typing to detect the language</span>
+        </div>
+      </div>
+      <label class="field-label" for="morse-input">Input</label>
+      <textarea id="morse-input" class="field" placeholder="e.g. Man khoob hastam  —  or type «من خوب هستم»" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="morse-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="morse-clear" type="button">Clear</button>
+      </div>
+      <div class="normalized-row" id="morse-normalized-row" hidden>
+        <span class="field-label" style="margin-top:0;">Normalized text</span>
+        <div class="normalized-text" id="morse-normalized"></div>
+      </div>
+      <label class="field-label" for="morse-output">Result</label>
+      <textarea id="morse-output" class="field" readonly placeholder="Dots and dashes will appear here…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="morse-hint"></span>
+        <div class="btn-group">
+          <button class="btn btn-ghost btn-small" id="morse-play" type="button"><span class="morse-lamp" id="morse-lamp" aria-hidden="true"></span>Play</button>
+          <button class="btn btn-ghost btn-small" id="morse-copy" type="button">Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== HEX ========== -->
+    <section class="panel is-hidden" id="panel-hex" data-panel="hex">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+      </div>
+      <label class="field-label" for="hex-input">Input</label>
+      <textarea id="hex-input" class="field" placeholder="Type text to encode to hexadecimal…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="hex-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="hex-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="hex-output">Result</label>
+      <textarea id="hex-output" class="field" readonly placeholder="Hexadecimal result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="hex-hint"></span>
+        <button class="btn btn-ghost btn-small" id="hex-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== CAESAR ========== -->
+    <section class="panel is-hidden" id="panel-caesar" data-panel="caesar">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="caesar-shift">Shift (1–25)</label>
+      <input type="number" id="caesar-shift" class="field field-sm" min="1" max="25" value="3">
+      <label class="field-label" for="caesar-input">Input</label>
+      <textarea id="caesar-input" class="field" placeholder="ATTACK AT DAWN" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="caesar-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="caesar-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="caesar-output">Result</label>
+      <textarea id="caesar-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="caesar-hint"></span>
+        <button class="btn btn-ghost btn-small" id="caesar-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== URL ENCODING ========== -->
+    <section class="panel is-hidden" id="panel-url" data-panel="url">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+      </div>
+      <label class="field-label" for="url-input">Input</label>
+      <textarea id="url-input" class="field" placeholder="https://example.com/search?q=hello world"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="url-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="url-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="url-output">Result</label>
+      <textarea id="url-output" class="field" readonly placeholder="Encoded URL…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="url-hint"></span>
+        <button class="btn btn-ghost btn-small" id="url-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== HTML ENTITY ========== -->
+    <section class="panel is-hidden" id="panel-html" data-panel="html">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+      </div>
+      <label class="field-label" for="html-input">Input</label>
+      <textarea id="html-input" class="field" placeholder="&lt;div class=&quot;box&quot;&gt;Hello &amp; welcome&lt;/div&gt;"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="html-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="html-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="html-output">Result</label>
+      <textarea id="html-output" class="field" readonly placeholder="Encoded HTML…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="html-hint"></span>
+        <button class="btn btn-ghost btn-small" id="html-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== BINARY ========== -->
+    <section class="panel is-hidden" id="panel-binary" data-panel="binary">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+      </div>
+      <label class="field-label" for="binary-input">Input</label>
+      <textarea id="binary-input" class="field" placeholder="Hello" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="binary-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="binary-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="binary-output">Result</label>
+      <textarea id="binary-output" class="field" readonly placeholder="Binary result…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="binary-hint"></span>
+        <button class="btn btn-ghost btn-small" id="binary-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== UNICODE ESCAPES ========== -->
+    <section class="panel is-hidden" id="panel-unicode" data-panel="unicode">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encode</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        </div>
+      </div>
+      <label class="field-label" for="unicode-input">Input</label>
+      <textarea id="unicode-input" class="field" placeholder="Hello 世界" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="unicode-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="unicode-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="unicode-output">Result</label>
+      <textarea id="unicode-output" class="field" readonly placeholder="\u0048\u0065\u006c\u006c\u006f…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="unicode-hint"></span>
+        <button class="btn btn-ghost btn-small" id="unicode-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== ROT13 ========== -->
+    <section class="panel is-hidden" id="panel-rot13" data-panel="rot13">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Apply ROT13</button>
+          <button class="mode-btn" data-mode="decode" type="button">Reverse</button>
+        </div>
+      </div>
+      <label class="field-label" for="rot13-input">Input</label>
+      <textarea id="rot13-input" class="field" placeholder="Hello World" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="rot13-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="rot13-output">Result</label>
+      <textarea id="rot13-output" class="field" readonly placeholder="Uryyb Jbeyq…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="rot13-hint"></span>
+        <button class="btn btn-ghost btn-small" id="rot13-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== VIGENERE ========== -->
+    <section class="panel is-hidden" id="panel-vigenere" data-panel="vigenere">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="vigenere-key">Key</label>
+      <input type="text" id="vigenere-key" class="field field-sm" placeholder="LEMON" spellcheck="false">
+      <label class="field-label" for="vigenere-input">Input</label>
+      <textarea id="vigenere-input" class="field" placeholder="ATTACKATDAWN" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="vigenere-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="vigenere-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="vigenere-output">Result</label>
+      <textarea id="vigenere-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="vigenere-hint"></span>
+        <button class="btn btn-ghost btn-small" id="vigenere-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== ATBASH ========== -->
+    <section class="panel is-hidden" id="panel-atbash" data-panel="atbash">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Apply Atbash</button>
+          <button class="mode-btn" data-mode="decode" type="button">Reverse</button>
+        </div>
+      </div>
+      <label class="field-label" for="atbash-input">Input</label>
+      <textarea id="atbash-input" class="field" placeholder="HELLO" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="atbash-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="atbash-output">Result</label>
+      <textarea id="atbash-output" class="field" readonly placeholder="SVOOL…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="atbash-hint"></span>
+        <button class="btn btn-ghost btn-small" id="atbash-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== AFFINE ========== -->
+    <section class="panel is-hidden" id="panel-affine" data-panel="affine">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <div class="key-row">
+        <div><label class="field-label" for="affine-a">Multiplier a (coprime with 26)</label>
+          <input type="number" id="affine-a" class="field field-sm" value="5" min="1"></div>
+        <div><label class="field-label" for="affine-b">Shift b</label>
+          <input type="number" id="affine-b" class="field field-sm" value="8"></div>
+      </div>
+      <label class="field-label" for="affine-input">Input</label>
+      <textarea id="affine-input" class="field" placeholder="AFFINE CIPHER" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="affine-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="affine-output">Result</label>
+      <textarea id="affine-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="affine-hint"></span>
+        <button class="btn btn-ghost btn-small" id="affine-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== PLAYFAIR ========== -->
+    <section class="panel is-hidden" id="panel-playfair" data-panel="playfair">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="playfair-key">Key</label>
+      <input type="text" id="playfair-key" class="field field-sm" placeholder="PLAYFAIR" spellcheck="false">
+      <label class="field-label" for="playfair-input">Input (only letters)</label>
+      <textarea id="playfair-input" class="field" placeholder="HIDETHEGOLDINTHETREE" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="playfair-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="playfair-output">Result</label>
+      <textarea id="playfair-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="playfair-hint"></span>
+        <button class="btn btn-ghost btn-small" id="playfair-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== XOR ========== -->
+    <section class="panel is-hidden" id="panel-xor" data-panel="xor">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="xor-key">Key (text or hex)</label>
+      <input type="text" id="xor-key" class="field field-sm" placeholder="secret" spellcheck="false">
+      <label class="field-label" for="xor-input">Input</label>
+      <textarea id="xor-input" class="field" placeholder="Message…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="xor-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="xor-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="xor-output">Result (hex)</label>
+      <textarea id="xor-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="xor-hint"></span>
+        <button class="btn btn-ghost btn-small" id="xor-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== AES ========== -->
+    <section class="panel is-hidden" id="panel-aes" data-panel="aes">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="aes-key">Passphrase</label>
+      <input type="text" id="aes-key" class="field field-sm" placeholder="my secret key" spellcheck="false">
+      <label class="field-label" for="aes-input">Input</label>
+      <textarea id="aes-input" class="field" placeholder="Message…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="aes-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="aes-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="aes-output">Result (Base64)</label>
+      <textarea id="aes-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="aes-hint"></span>
+        <button class="btn btn-ghost btn-small" id="aes-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== DES / 3DES ========== -->
+    <section class="panel is-hidden" id="panel-des" data-panel="des">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="des-key">Passphrase</label>
+      <input type="text" id="des-key" class="field field-sm" placeholder="secret key" spellcheck="false">
+      <label class="field-label" for="des-input">Input</label>
+      <textarea id="des-input" class="field" placeholder="Message…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="des-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="des-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="des-output">Result</label>
+      <textarea id="des-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="des-hint"></span>
+        <button class="btn btn-ghost btn-small" id="des-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== CHACHA20 ========== -->
+    <section class="panel is-hidden" id="panel-chacha" data-panel="chacha">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <label class="field-label" for="chacha-key">Passphrase</label>
+      <input type="text" id="chacha-key" class="field field-sm" placeholder="my passphrase" spellcheck="false">
+      <label class="field-label" for="chacha-input">Input</label>
+      <textarea id="chacha-input" class="field" placeholder="Message…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="chacha-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="chacha-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="chacha-output">Result</label>
+      <textarea id="chacha-output" class="field" readonly placeholder="Result…"></textarea>
+      <div class="result-row">
+        <span class="hint" id="chacha-hint"></span>
+        <button class="btn btn-ghost btn-small" id="chacha-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== RSA ========== -->
+    <section class="panel is-hidden" id="panel-rsa" data-panel="rsa">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" id="rsa-gen" type="button">Generate Keypair</button>
+        <button class="btn" id="rsa-export" type="button">Export Keys</button>
+      </div>
+      <div class="key-row">
+        <div><label class="field-label" for="rsa-public">Public Key (PEM)</label>
+          <textarea id="rsa-public" class="field field-sm" readonly placeholder="Click Generate…" spellcheck="false"></textarea></div>
+        <div><label class="field-label" for="rsa-private">Private Key (PEM)</label>
+          <textarea id="rsa-private" class="field field-sm" readonly placeholder="Click Generate…" spellcheck="false"></textarea></div>
+      </div>
+      <label class="field-label" for="rsa-input">Input</label>
+      <textarea id="rsa-input" class="field" placeholder="Message…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="rsa-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="rsa-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="rsa-output">Result</label>
+      <textarea id="rsa-output" class="field" readonly placeholder="Result…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="rsa-hint"></span>
+        <button class="btn btn-ghost btn-small" id="rsa-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== ECC ========== -->
+    <section class="panel is-hidden" id="panel-ecc" data-panel="ecc">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Encrypt</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decrypt</button>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" id="ecc-gen" type="button">Generate EC Keypair</button>
+        <button class="btn" id="ecc-export" type="button">Export Keys</button>
+      </div>
+      <div class="key-row">
+        <div><label class="field-label" for="ecc-public">Public Key</label>
+          <textarea id="ecc-public" class="field field-sm" readonly placeholder="Click Generate…" spellcheck="false"></textarea></div>
+        <div><label class="field-label" for="ecc-private">Private Key</label>
+          <textarea id="ecc-private" class="field field-sm" readonly placeholder="Click Generate…" spellcheck="false"></textarea></div>
+      </div>
+      <label class="field-label" for="ecc-input">Input</label>
+      <textarea id="ecc-input" class="field" placeholder="Message…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="ecc-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="ecc-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="ecc-output">Result</label>
+      <textarea id="ecc-output" class="field" readonly placeholder="Result…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="ecc-hint"></span>
+        <button class="btn btn-ghost btn-small" id="ecc-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== DIFFIE-HELLMAN ========== -->
+    <section class="panel is-hidden" id="panel-dh" data-panel="dh">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Derive Shared</button>
+          <button class="mode-btn" data-mode="decode" type="button">Verify</button>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" id="dh-gen" type="button">Generate DH Keypair</button>
+      </div>
+      <div class="key-row">
+        <div><label class="field-label" for="dh-public">Public Key</label>
+          <textarea id="dh-public" class="field field-sm" readonly placeholder="Click Generate…" spellcheck="false"></textarea></div>
+        <div><label class="field-label" for="dh-private">Private Key</label>
+          <textarea id="dh-private" class="field field-sm" readonly placeholder="Click Generate…" spellcheck="false"></textarea></div>
+      </div>
+      <label class="field-label" for="dh-peer">Peer Public Key</label>
+      <textarea id="dh-peer" class="field field-sm" placeholder="Paste peer's public key…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="dh-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="dh-output">Shared Secret (hex)</label>
+      <textarea id="dh-output" class="field" readonly placeholder="Shared secret will appear here…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="dh-hint"></span>
+        <button class="btn btn-ghost btn-small" id="dh-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== HASHING ========== -->
+    <section class="panel is-hidden" id="panel-hash" data-panel="hash">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="hash" type="button">Hash</button>
+          <button class="mode-btn" data-mode="verify" type="button">Compare</button>
+        </div>
+      </div>
+      <label class="field-label" for="hash-algo">Algorithm</label>
+      <select id="hash-algo" class="field field-sm" style="font-family:var(--font-mono);">
+        <option value="MD5">MD5</option>
+        <option value="SHA-1">SHA-1</option>
+        <option value="SHA-256" selected>SHA-256</option>
+        <option value="SHA-512">SHA-512</option>
+        <option value="SHA-384">SHA-384</option>
+        <option value="RIPEMD-160">RIPEMD-160</option>
+      </select>
+      <label class="field-label" for="hash-input">Input</label>
+      <textarea id="hash-input" class="field" placeholder="Text to hash…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="hash-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="hash-output">Hash (hex)</label>
+      <textarea id="hash-output" class="field" readonly placeholder="Hash result…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="hash-hint"></span>
+        <button class="btn btn-ghost btn-small" id="hash-copy" type="button">Copy</button>
+      </div>
+      <div id="hash-compare-row" hidden>
+        <label class="field-label" for="hash-compare">Expected hash (hex)</label>
+        <input type="text" id="hash-compare" class="field field-sm" placeholder="Paste expected hash…" spellcheck="false">
+        <span class="hint" id="hash-compare-hint" style="display:block;margin-top:8px;"></span>
+      </div>
+    </section>
+
+    <!-- ========== BCRYPT / SCRYPT / ARGON2 ========== -->
+    <section class="panel is-hidden" id="panel-bcrypt" data-panel="bcrypt">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="hash" type="button">Hash Password</button>
+          <button class="mode-btn" data-mode="verify" type="button">Verify</button>
+        </div>
+      </div>
+      <label class="field-label" for="pw-algo">Algorithm</label>
+      <select id="pw-algo" class="field field-sm" style="font-family:var(--font-mono);">
+        <option value="bcrypt">bcrypt</option>
+        <option value="scrypt">scrypt</option>
+        <option value="argon2id">Argon2id</option>
+      </select>
+      <label class="field-label" for="pw-input">Password</label>
+      <input type="password" id="pw-input" class="field field-sm" placeholder="Enter password…" autocomplete="new-password">
+      <label class="field-label" for="pw-salt">Salt (optional — auto-generated if empty)</label>
+      <input type="text" id="pw-salt" class="field field-sm" placeholder="Leave empty for random salt" spellcheck="false">
+      <div class="action-row">
+        <button class="btn btn-primary" id="pw-hash" type="button">Hash</button>
+        <button class="btn btn-ghost" id="pw-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="pw-output">Result</label>
+      <textarea id="pw-output" class="field" readonly placeholder="Hash will appear here…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="pw-hint"></span>
+        <button class="btn btn-ghost btn-small" id="pw-copy" type="button">Copy</button>
+      </div>
+      <div id="pw-verify-row" hidden>
+        <label class="field-label" for="pw-expected">Expected hash</label>
+        <input type="text" id="pw-expected" class="field field-sm" placeholder="Paste hash to verify…" spellcheck="false">
+        <span class="hint" id="pw-verify-hint" style="display:block;margin-top:8px;"></span>
+      </div>
+    </section>
+
+    <!-- ========== COMPRESSION ========== -->
+    <section class="panel is-hidden" id="panel-compression" data-panel="compression">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Compress</button>
+          <button class="mode-btn" data-mode="decode" type="button">Decompress</button>
+        </div>
+      </div>
+      <label class="field-label" for="gzip-input">Input</label>
+      <textarea id="gzip-input" class="field" placeholder="Text to compress…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-swap" id="gzip-swap" type="button">⇄ Swap</button>
+        <button class="btn btn-ghost" id="gzip-clear" type="button">Clear</button>
+      </div>
+      <label class="field-label" for="gzip-output">Result (Base64)</label>
+      <textarea id="gzip-output" class="field" readonly placeholder="Compressed result…" spellcheck="false"></textarea>
+      <div class="result-row">
+        <span class="hint" id="gzip-hint"></span>
+        <button class="btn btn-ghost btn-small" id="gzip-copy" type="button">Copy</button>
+      </div>
+    </section>
+
+    <!-- ========== STEGANOGRAPHY ========== -->
+    <section class="panel is-hidden" id="panel-steganography" data-panel="steganography">
+      <div class="mode-row">
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="encode" type="button">Hide</button>
+          <button class="mode-btn" data-mode="decode" type="button">Extract</button>
+        </div>
+      </div>
+      <label class="field-label" for="steg-image">Cover image (PNG)</label>
+      <input type="file" id="steg-image" class="field field-sm" accept="image/png" style="padding:10px 12px;">
+      <label class="field-label" for="steg-message">Secret message</label>
+      <textarea id="steg-message" class="field" placeholder="Message to hide…" spellcheck="false"></textarea>
+      <div class="action-row">
+        <button class="btn btn-primary" id="steg-hide" type="button">Hide &amp; Download</button>
+        <button class="btn btn-ghost" id="steg-clear" type="button">Clear</button>
+      </div>
+      <div class="result-row">
+        <span class="hint" id="steg-hint"></span>
+      </div>
+      <div id="steg-extract-row" hidden>
+        <label class="field-label">Image with hidden message</label>
+        <input type="file" id="steg-extract-image" class="field field-sm" accept="image/png" style="padding:10px 12px;">
+        <div class="action-row">
+          <button class="btn btn-primary" id="steg-extract" type="button">Extract</button>
+        </div>
+        <label class="field-label" for="steg-output">Extracted message</label>
+        <textarea id="steg-output" class="field" readonly placeholder="Extracted message…" spellcheck="false"></textarea>
+      </div>
+    </section>
+
+    <!-- ========== ABOUT ========== -->
+    <section class="panel is-hidden" id="panel-about" data-panel="about">
+      <div class="about-block">
+        <h3>About Signal</h3>
+        <p>Signal is a privacy-first, offline-friendly toolbox for encoding, decoding, ciphering and hashing text and files. Every operation runs locally in your browser — nothing is sent to any server.</p>
+        <p>It was built to be a single place where you can quickly reach for the right tool, whether you're a developer debugging a Base64 string, a student learning classical ciphers, or someone who just wants to hash a password safely.</p>
+      </div>
+
+      <div class="about-block">
+        <h3>What you can do here</h3>
+        <ul class="about-list">
+          <li><strong>Encoders:</strong> Base64, Hex, Base32/58/85, URL encoding, HTML entities, Binary, Unicode escapes.</li>
+          <li><strong>Classical ciphers:</strong> Caesar, ROT13, Vigenère, Atbash, Affine, Playfair.</li>
+          <li><strong>Modern ciphers:</strong> XOR, AES, DES/3DES, ChaCha20 — all with key input.</li>
+          <li><strong>Asymmetric cryptography:</strong> RSA, ECC and Diffie-Hellman keypair generation and operations.</li>
+          <li><strong>Hashing:</strong> MD5, SHA-1, SHA-256, SHA-384, SHA-512, RIPEMD-160.</li>
+          <li><strong>Password hashing:</strong> bcrypt, scrypt and Argon2id with salt support.</li>
+          <li><strong>Extras:</strong> Morse code with Fingilish and Persian auto-transliteration, gzip compression, and image steganography.</li>
+        </ul>
+      </div>
+
+      <div class="about-block">
+        <h3>Privacy</h3>
+        <p>No data ever leaves your device. There are no analytics, no tracking scripts, and no network requests for any operation you perform. You can even use this page offline after the first load.</p>
+      </div>
+
+      <div class="about-block">
+        <h3>Contact</h3>
+        <p>Follow on X for updates, questions or feedback:</p>
+        <a class="x-link" href="https://x.com/@RITM-Editz" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          @RITM-Editz
+        </a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark">··−</span>
+      <p>Universal encoder, cipher and hash console. Runs entirely in your browser — nothing is uploaded.</p>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <h5>Tools</h5>
+        <button data-nav="base64" type="button">Base64</button>
+        <button data-nav="hex" type="button">Hex</button>
+        <button data-nav="morse" type="button">Morse</button>
+        <button data-nav="caesar" type="button">Caesar</button>
+      </div>
+      <div class="footer-col">
+        <h5>More</h5>
+        <button data-nav="aes" type="button">AES</button>
+        <button data-nav="rsa" type="button">RSA</button>
+        <button data-nav="hash" type="button">Hashing</button>
+        <button data-nav="about" type="button">About</button>
+      </div>
+      <div class="footer-col">
+        <h5>Connect</h5>
+        <a href="https://x.com/@RITM-Editz" target="_blank" rel="noopener noreferrer">X / Twitter</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-note">© <span id="year"></span> Signal Console — built for privacy, speed and clarity.</div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ==================== LIBS ==================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hash-wasm@4"></script>
+
+<script>
+// ===================== THREE.JS BACKGROUND =====================
+if (window.THREE) {
+  (function(){
+    var canvas = document.getElementById('bg-canvas');
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 9);
+    var isSmall = window.innerWidth < 720;
+    var colorA = new THREE.Color(0xffa94d);
+    var colorB = new THREE.Color(0x7c6cff);
+    var count = isSmall ? 300 : 800;
+    var positions = new Float32Array(count * 3);
+    var colors = new Float32Array(count * 3);
+    for (var i = 0; i < count; i++) {
+      positions[i*3+0] = (Math.random() - 0.5) * 28;
+      positions[i*3+1] = (Math.random() - 0.5) * 17;
+      positions[i*3+2] = (Math.random() - 0.5) * 14 - 2;
+      var c = colorA.clone().lerp(colorB, Math.random());
+      colors[i*3+0] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    function dotTexture(){
+      var size = 64; var cvs = document.createElement('canvas');
+      cvs.width = cvs.height = size;
+      var ctx = cvs.getContext('2d');
+      var g = ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,size,size);
+      return new THREE.CanvasTexture(cvs);
+    }
+    var pointsMat = new THREE.PointsMaterial({
+      size: isSmall ? 0.095 : 0.115, map: dotTexture(), vertexColors: true,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.85
+    });
+    var points = new THREE.Points(geo, pointsMat);
+    scene.add(points);
+    var nodeGeos = [
+      new THREE.IcosahedronGeometry(1.1, 0),
+      new THREE.OctahedronGeometry(0.9, 0),
+      new THREE.TorusGeometry(0.8, 0.24, 8, 40),
+      new THREE.IcosahedronGeometry(0.6, 1)
+    ];
+    var nodes = [];
+    nodeGeos.forEach(function(g, idx){
+      var color = idx % 2 === 0 ? 0xffa94d : 0x7c6cff;
+      var m = new THREE.MeshBasicMaterial({ color: color, wireframe: true, transparent: true, opacity: 0.3 });
+      var mesh = new THREE.Mesh(g, m);
+      mesh.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*8.5, -4 - Math.random()*6);
+      mesh.userData.sx = (Math.random()*0.5 + 0.15) * (Math.random() < 0.5 ? -1 : 1);
+      mesh.userData.sy = (Math.random()*0.4 + 0.1) * (Math.random() < 0.5 ? -1 : 1);
+      scene.add(mesh); nodes.push(mesh);
+    });
+    var waveCount = isSmall ? 80 : 140;
+    var wavePositions = new Float32Array(waveCount * 3);
+    for (var w = 0; w < waveCount; w++) {
+      wavePositions[w*3+0] = (w/(waveCount-1) - 0.5) * 26;
+      wavePositions[w*3+1] = -5.4; wavePositions[w*3+2] = -3;
+    }
+    var waveGeo = new THREE.BufferGeometry();
+    waveGeo.setAttribute('position', new THREE.BufferAttribute(wavePositions, 3));
+    var waveMat = new THREE.LineBasicMaterial({ color: 0xffa94d, transparent: true, opacity: 0.35 });
+    var waveLine = new THREE.Line(waveGeo, waveMat);
+    scene.add(waveLine);
+    var grid = new THREE.GridHelper(44, 36, 0x7c6cff, 0x1b2434);
+    grid.position.y = -6.4;
+    grid.material.transparent = true; grid.material.opacity = 0.2;
+    scene.add(grid);
+    var mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+    window.addEventListener('pointermove', function(e){
+      mouseX = (e.clientX / window.innerWidth) - 0.5;
+      mouseY = (e.clientY / window.innerHeight) - 0.5;
+    }, { passive: true });
+    var clock = new THREE.Clock();
+    var running = true; var rafId = null;
+    function animate(){
+      if (!running) return;
+      rafId = requestAnimationFrame(animate);
+      var t = clock.getElapsedTime();
+      targetX += (mouseX - targetX) * 0.03;
+      targetY += (mouseY - targetY) * 0.03;
+      points.rotation.y = t * 0.02 + targetX * 0.4;
+      points.rotation.x = targetY * 0.2;
+      nodes.forEach(function(n){
+        n.rotation.x += 0.004 * n.userData.sy;
+        n.rotation.y += 0.004 * n.userData.sx;
+      });
+      camera.position.x += (targetX * 1.3 - camera.position.x) * 0.02;
+      camera.position.y += (-targetY * 1.1 - camera.position.y) * 0.02;
+      camera.lookAt(0, 0, 0);
+      var posAttr = waveGeo.attributes.position;
+      for (var k = 0; k < waveCount; k++) {
+        var x = posAttr.getX(k);
+        var y = Math.sin(x * 0.6 + t * 1.6) * 0.6 + Math.sin(x * 0.15 - t * 0.8) * 0.4 - 5.4;
+        posAttr.setY(k, y);
+      }
+      posAttr.needsUpdate = true;
+      grid.position.z = (t * 0.7) % (44 / 36);
+      renderer.render(scene, camera);
+    }
+    animate();
+    var resizeTimer;
+    window.addEventListener('resize', function(){
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function(){
+        var w = window.innerWidth, h = window.innerHeight;
+        camera.aspect = w / h; camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }, 120);
+    });
+    document.addEventListener('visibilitychange', function(){
+      running = !document.hidden;
+      if (running) animate();
+      else if (rafId) cancelAnimationFrame(rafId);
+    });
+  })();
+} else {
+  document.body.classList.add('no-three');
+}
+</script>
+
+<script>
+// ===================== APP LOGIC =====================
+(function(){
+  'use strict';
+
+  // ---------- helpers ----------
+  var $ = function(id){ return document.getElementById(id); };
+  function showToast(msg){
+    var el = $('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function(){ el.classList.remove('show'); }, 2400);
+  }
+  function pulse(panel){
+    panel.classList.remove('pulse'); void panel.offsetWidth; panel.classList.add('pulse');
+  }
+  function formatBytes(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/(1024*1024)).toFixed(1) + ' MB';
+  }
+  function copyText(text){
+    if (!text) { showToast('Nothing to copy yet.'); return; }
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.top='0'; ta.style.left='0';
+    ta.style.width='2em'; ta.style.height='2em'; ta.style.padding='0';
+    ta.style.border='none'; ta.style.outline='none'; ta.style.boxShadow='none';
+    ta.style.background='transparent'; ta.style.opacity='0'; ta.style.fontSize='16px';
+    document.body.appendChild(ta);
+    var ok = false;
+    try {
+      ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+      ok = document.execCommand('copy');
+    } catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    if (ok) { showToast('Copied to clipboard.'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ showToast('Copied to clipboard.'); })
+        .catch(function(){ showToast('Copy blocked — select the text and copy manually.'); });
+    } else {
+      showToast('Copy is not available here — select manually.');
+    }
+  }
+  function bindCopy(btnId, getText){
+    $(btnId).addEventListener('click', function(){ copyText(getText()); });
+  }
+  function bindClear(btnId, fn){
+    $(btnId).addEventListener('click', function(){ fn(); });
+  }
+
+  // ---------- navigation ----------
+  var currentPanel = 'home';
+  function showPanel(name){
+    currentPanel = name;
+    document.querySelectorAll('.panel').forEach(function(p){
+      p.classList.toggle('is-hidden', p.dataset.panel !== name);
+    });
+    document.querySelectorAll('[data-nav]').forEach(function(btn){
+      btn.classList.toggle('active', btn.dataset.nav === name);
+    });
+    var panel = document.querySelector('.panel[data-panel="' + name + '"]');
+    if (panel) pulse(panel);
+    closeDropdown();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  // all data-nav buttons (header, footer, home cards)
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-nav]');
+    if (btn) { showPanel(btn.dataset.nav); }
+  });
+
+  // dropdown
+  var dropdownToggle = $('other-toggle');
+  var dropdownPanel = $('other-panel');
+  function closeDropdown(){
+    dropdownPanel.classList.remove('open');
+    dropdownToggle.setAttribute('aria-expanded','false');
+  }
+  dropdownToggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = dropdownPanel.classList.toggle('open');
+    dropdownToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e){
+    if (!dropdownPanel.contains(e.target) && e.target !== dropdownToggle) closeDropdown();
+  });
+
+  // footer year
+  $('year').textContent = new Date().getFullYear();
+
+  // ============================================================
+  // BASE64
+  // ============================================================
+  var b64State = { mode:'encode', fileLoaded:false };
+  function utf8ToBase64(str){
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for (var i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+  function detectMime(bytes){
+    if (bytes.length>=4 && bytes[0]===0x89 && bytes[1]===0x50 && bytes[2]===0x4E && bytes[3]===0x47) return 'image/png';
+    if (bytes.length>=3 && bytes[0]===0xFF && bytes[1]===0xD8 && bytes[2]===0xFF) return 'image/jpeg';
+    if (bytes.length>=3 && bytes[0]===0x47 && bytes[1]===0x49 && bytes[2]===0x46) return 'image/gif';
+    if (bytes.length>=12 && bytes[0]===0x52 && bytes[1]===0x49 && bytes[2]===0x46 && bytes[3]===0x46 &&
+        bytes[8]===0x57 && bytes[9]===0x45 && bytes[10]===0x42 && bytes[11]===0x50) return 'image/webp';
+    return null;
+  }
+  function hideB64Image(){ $('b64-image-preview').hidden = true; $('b64-image').src=''; }
+  function showB64Image(src){ $('b64-image').src = src; $('b64-image-preview').hidden = false; }
+
+  function updateBase64(){
+    var inputEl = $('b64-input'), outputEl = $('b64-output'), hintEl = $('b64-hint');
+    hintEl.classList.remove('error'); hintEl.textContent = '';
+    if (b64State.mode === 'encode') {
+      if (b64State.fileLoaded) return;
+      var raw = inputEl.value;
+      outputEl.value = raw ? utf8ToBase64(raw) : '';
+      hideB64Image();
+    } else {
+      hideB64Image();
+      var trimmed = inputEl.value.trim();
+      if (!trimmed) { outputEl.value=''; return; }
+      var cleaned = trimmed.replace(/\s+/g,'');
+      if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(cleaned)) {
+        outputEl.value=''; hintEl.textContent="That doesn't look like valid Base64.";
+        hintEl.classList.add('error'); return;
+      }
+      try {
+        var normalized = cleaned.replace(/-/g,'+').replace(/_/g,'/');
+        var binary = atob(normalized);
+        var bytes = new Uint8Array(binary.length);
+        for (var i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+        var mime = detectMime(bytes);
+        if (mime) {
+          outputEl.value = '[' + mime + ' image — ' + formatBytes(bytes.length) + ' — previewed below]';
+          showB64Image('data:' + mime + ';base64,' + normalized);
+        } else {
+          outputEl.value = new TextDecoder('utf-8',{fatal:false}).decode(bytes);
+        }
+      } catch(e) {
+        outputEl.value=''; hintEl.textContent="That doesn't look like valid Base64.";
+        hintEl.classList.add('error');
+      }
+    }
+  }
+  function resetB64File(){
+    b64State.fileLoaded = false;
+    var inputEl = $('b64-input');
+    inputEl.disabled = false; inputEl.value = '';
+    inputEl.placeholder = 'Type or paste anything to encode…';
+    $('b64-file-notice').hidden = true; hideB64Image();
+  }
+  function loadB64File(file){
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var dataUrl = reader.result;
+      var b64 = (dataUrl.split(',')[1]) || '';
+      $('b64-output').value = b64;
+      b64State.fileLoaded = true;
+      var inputEl = $('b64-input');
+      inputEl.value=''; inputEl.disabled=true;
+      inputEl.placeholder = 'Loaded: ' + file.name + ' (' + formatBytes(file.size) + ')';
+      $('b64-file-notice').hidden = false;
+      $('b64-file-notice-text').textContent = file.name + ' — ' + formatBytes(file.size);
+      if (file.type && file.type.indexOf('image/')===0) showB64Image(dataUrl); else hideB64Image();
+      $('b64-hint').textContent=''; $('b64-hint').classList.remove('error');
+    };
+    reader.readAsDataURL(file);
+  }
+  $('b64-input').addEventListener('input', updateBase64);
+  document.querySelectorAll('#panel-base64 .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      b64State.mode = b.dataset.mode;
+      document.querySelectorAll('#panel-base64 .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      if (b64State.mode === 'decode') { resetB64File(); $('b64-input').placeholder='Paste a Base64 string to decode…'; }
+      else { $('b64-input').disabled=false; $('b64-input').placeholder='Type or paste anything to encode…'; }
+      $('b64-file-row').hidden = (b64State.mode !== 'encode');
+      updateBase64(); pulse($('panel-base64'));
+    });
+  });
+  $('b64-swap').addEventListener('click', function(){
+    if (b64State.fileLoaded) { showToast('Remove the loaded file first.'); return; }
+    var i=$('b64-input'), o=$('b64-output'), t=i.value; i.value=o.value; o.value=t;
+    b64State.mode = b64State.mode==='encode' ? 'decode' : 'encode';
+    document.querySelectorAll('#panel-base64 .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===b64State.mode); });
+    $('b64-file-row').hidden = (b64State.mode !== 'encode');
+    updateBase64();
+  });
+  bindClear('b64-clear', function(){ resetB64File(); $('b64-output').value=''; updateBase64(); });
+  bindCopy('b64-copy', function(){ return $('b64-output').value; });
+  var fileInput = $('file-input-b64'), fileDrop = $('file-drop-b64');
+  fileInput.addEventListener('change', function(e){ loadB64File(e.target.files[0]); });
+  ['dragover','dragenter'].forEach(function(evt){
+    fileDrop.addEventListener(evt, function(e){ e.preventDefault(); fileDrop.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    fileDrop.addEventListener(evt, function(e){ e.preventDefault(); fileDrop.classList.remove('drag'); });
+  });
+  fileDrop.addEventListener('drop', function(e){
+    var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) loadB64File(f);
+  });
+  $('b64-file-clear-btn').addEventListener('click', function(){ resetB64File(); updateBase64(); });
+
+  // ============================================================
+  // MORSE + Persian/Fingilish
+  // ============================================================
+  var MORSE_MAP = {
+    'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.','H':'....',
+    'I':'..','J':'.---','K':'-.-','L':'.-..','M':'--','N':'-.','O':'---','P':'.--.',
+    'Q':'--.-','R':'.-.','S':'...','T':'-','U':'..-','V':'...-','W':'.--','X':'-..-',
+    'Y':'-.--','Z':'--..',
+    '0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....',
+    '6':'-....','7':'--...','8':'---..','9':'----.',
+    '.':'.-.-.-', ',':'--..--', '?':'..--..', "'":'.----.', '!':'-.-.--',
+    '/':'-..-.', '(':'-.--.', ')':'-.--.-', '&':'.-...', ':':'---...',
+    ';':'-.-.-.', '=':'-...-', '+':'.-.-.', '-':'-....-', '_':'..--.-',
+    '"':'.-..-.', '$':'...-..-', '@':'.--.-.'
+  };
+  var MORSE_REV = {}; Object.keys(MORSE_MAP).forEach(function(k){ MORSE_REV[MORSE_MAP[k]] = k; });
+
+  var PERSIAN_CHARS = {
+    'آ':'aa','ا':'a','ب':'b','پ':'p','ت':'t','ث':'s','ج':'j','چ':'ch','ح':'h','خ':'kh',
+    'د':'d','ذ':'z','ر':'r','ز':'z','ژ':'zh','س':'s','ش':'sh','ص':'s','ض':'z','ط':'t','ظ':'z',
+    'ع':'a','غ':'gh','ف':'f','ق':'gh','ک':'k','ك':'k','گ':'g','ل':'l','م':'m','ن':'n',
+    'ه':'h','ی':'i','ي':'i','ى':'i','ئ':'y','ء':'','ة':'h','ؤ':'o','إ':'e','أ':'a','ٱ':'a',
+    '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9',
+    '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9',
+    '\u064E':'a','\u0650':'e','\u064F':'o','\u0651':'','\u0652':'',
+    '\u064B':'an','\u064D':'en','\u064C':'on','\u0654':'','\u0655':'','\u0670':'a'
+  };
+  var PERSIAN_WORDS = {
+    'و':'o','به':'beh','با':'ba','از':'az','که':'ke','این':'in','آن':'oon','را':'ro','رو':'ro',
+    'در':'dar','برای':'baraye','تا':'ta','بر':'bar','هم':'ham','یا':'ya','اگر':'agar','اما':'amma',
+    'چون':'chon','پس':'pas','نیز':'niz','هر':'har','چه':'che','چی':'chi','وقتی':'vaghti',
+    'من':'man','تو':'to','شما':'shoma','ما':'ma','او':'oo','اونا':'oona','آنها':'oonha','ایشون':'ishoon',
+    'منم':'manam','خودم':'khodam','خودت':'khodet','خودش':'khodesh','خودمون':'khodemoon',
+    'اینو':'ino','اونو':'oono','اینجا':'inja','اونجا':'oonja','اینجوری':'injoori','اون':'oon',
+    'هستم':'hastam','هستی':'hasti','هست':'hast','هستیم':'hastim','هستید':'hastid','هستند':'hastand',
+    'است':'ast','نیست':'nist','بود':'bood','بودم':'boodam','بودی':'boodi','شد':'shod','شدم':'shodam',
+    'دارم':'daram','داری':'dari','دارد':'dare','داریم':'darim','دارید':'darid','دارند':'daran',
+    'میکنم':'mikonam','میکنی':'mikoni','میکنه':'mikone','میکنیم':'mikonim','میکنید':'mikonid','میکنن':'mikonan',
+    'میروم':'miram','میرم':'miram','میری':'miri','میره':'mire','میریم':'mirim','میرید':'mirid','میرن':'miran',
+    'میام':'miam','میای':'miay','میاد':'miad','میایم':'miaym','میان':'mian',
+    'میخوام':'mikham','میخواهم':'mikham','میخوای':'mikhay','میخواد':'mikhad','میخوایم':'mikhaym',
+    'میدونم':'midoonam','نمیدونم':'nemidoonam','میدونی':'midooni','میدونه':'midoone',
+    'میتونم':'mitoonam','نمیتونم':'namitoonam','میتونی':'mitooni','میتونه':'mitoone',
+    'بگو':'begu','برو':'boro','بیا':'bia','باشه':'bashe','باشد':'bashe','بده':'bede','بگیر':'begir',
+    'سلام':'salam','درود':'dorood','ممنون':'mamnoon','مرسی':'mersi','سپاس':'sepas',
+    'خداحافظ':'khodahafez','بدرود':'bedrood','بله':'baleh','آره':'are','نه':'na','نخیر':'nakheyr',
+    'چطوری':'chetori','چطور':'chetor','چگونه':'chegune','کجا':'koja','چرا':'chera','کی':'ki',
+    'چند':'chand','چقدر':'cheghadr','الان':'alan','حالا':'hala','هنوز':'hanooz','دیگه':'dige',
+    'امروز':'emrooz','دیروز':'dirooz','فردا':'farda','امشب':'emshab','دیشب':'dishab',
+    'خیلی':'kheili','بسیار':'besyar','فقط':'faghat','اصلا':'aslan','همیشه':'hamishe','هرگز':'hargez',
+    'لطفا':'lotfan','ببخشید':'bebakhshid','متشکرم':'motashakkeram','معذرت':'mazerat',
+    'خوب':'khoob','خوبی':'khoobi','خوبم':'khoobam','خوبه':'khoobe','خوبیم':'khoobim','خوبید':'khoobid',
+    'بد':'bad','بزرگ':'bozorg','کوچک':'koochak','زیاد':'ziad','کم':'kam','قشنگ':'ghashang',
+    'خانه':'khuneh','خونه':'khoone','دوست':'doost','دوستت':'doostet','عشق':'eshgh','عاشق':'ashegh',
+    'دل':'del','قلب':'ghalb','جان':'joon','عزیز':'aziz','عزیزم':'azizam',
+    'ایران':'iran','فارسی':'farsi','زبان':'zaban','کتاب':'ketab','آب':'ab','نان':'nan','چای':'chay',
+    'مادر':'madar','پدر':'pedar','برادر':'baradar','خواهر':'khahar','خانواده':'khanevade',
+    'اسم':'esm','اسمم':'esmam','اسمت':'esmet','نام':'nam','کار':'kar','مدرسه':'madrese',
+    'شهر':'shahr','روز':'rooz','شب':'shab','صبح':'sobh','سال':'sal','ماه':'mah','هفته':'hafte',
+    'ساعت':'saat','وقت':'vaght','زمان':'zaman','مردم':'mardom','بچه':'bache','بچهها':'bacheha',
+    'یک':'yek','دو':'do','سه':'se','چهار':'chahar','پنج':'panj','شش':'shesh','هفت':'haft',
+    'هشت':'hasht','ده':'dah','صد':'sad','هزار':'hezar','میلیون':'milion',
+    'مثل':'mesl','واقعا':'vaghean','حتما':'hatman','شاید':'shayad','معلوم':'maloom',
+    'چشم':'cheshm','گوش':'goosh','دست':'dast','پا':'pa','سر':'sar','هوا':'hava','کوه':'kooh'
+  };
+  var PERSIAN_RE = /[\u0600-\u06FF]/;
+  var PERSIAN_JOINER_RE = /[\u0600-\u06FF\u200c]/;
+
+  function translitWord(w){
+    if (PERSIAN_WORDS[w] !== undefined) return PERSIAN_WORDS[w];
+    var out = '', len = w.length;
+    for (var i=0;i<len;i++){
+      var ch = w.charAt(i);
+      if (ch === 'ه' && i === len-1 && len>1 && w.charAt(len-2) !== 'ا') { out += 'eh'; continue; }
+      if (ch === 'و') { out += (i===0 && len>1) ? 'v' : 'oo'; continue; }
+      if (PERSIAN_CHARS[ch] !== undefined) out += PERSIAN_CHARS[ch];
+    }
+    return out;
+  }
+  function toFingilish(text){
+    if (!PERSIAN_RE.test(text)) return text;
+    var out='', buf='';
+    function flush(){ if (buf) { out += translitWord(buf); buf=''; } }
+    for (var i=0;i<text.length;i++){
+      var ch = text.charAt(i);
+      if (ch === '\u200c' || ch === '\u200e' || ch === '\u200f') continue;
+      if (PERSIAN_JOINER_RE.test(ch)) buf += ch;
+      else { flush(); out += ch; }
+    }
+    flush(); return out;
+  }
+  // language detection (reuses word lists)
+  var FING_SET = new Set(['salam','khoob','khoobi','khoobam','chetori','mamnoon','mersi','khodahafez','baleh','are','na','man','shoma','ma','oo','hastam','hasti','hast','daram','dari','dare','mikham','mikoni','mikone','miram','miri','mire','baraye','lotfan','bebakhshid','kheili','faghat','alan','emrooz','farda','khuneh','khoone','doost','eshgh','aziz','iran','farsi','zaban','ketab','madar','pedar','baradar','khahar','bache','bacheha','yek','do','se','chahar','panj','shesh','haft','hasht','dah','begu','boro','bia','bashe']);
+  var ENG_SET = new Set(['the','is','are','am','you','he','she','it','we','they','have','has','do','does','did','will','would','can','could','should','this','that','these','those','and','or','but','not','my','your','his','her','our','their','hello','hi','how','what','when','where','why','who','good','bad','yes','no','please','thanks','sorry','name','from','with','for','on','at','in','to','of','a','an','be','was','were','very','just','now','here','there','more','most','other','people','time','year','way','day','man','thing','woman','life','world','school','state','family','student','country','problem','hand','part','place','week','work','number','night','point','home','water','room','mother','money','story','fact','month','book','eye','job','word','business','side','kind','head','house','service','friend','father','power','hour','game','line','end','member','law','car','city','team','minute','idea','body','information']);
+  function detectLang(text){
+    var tokens = (text.toLowerCase().match(/[a-z]+/g)) || [];
+    if (!tokens.length) return { lang:'empty' };
+    var f=0,e=0;
+    tokens.forEach(function(t){
+      if (FING_SET.has(t)) f+=1;
+      if (ENG_SET.has(t)) e+=1;
+      if (/^(kh|gh)/.test(t)) f+=0.5;
+      if (t.length<=8 && /(oo|aa)/.test(t)) f+=0.25;
+    });
+    if (f===0 && e===0) return { lang:'unknown' };
+    if (f>e) return { lang:'fingilish' };
+    if (e>f) return { lang:'english' };
+    return { lang:'mixed' };
+  }
+  function updateLangBadge(res, hasInput, persianConverted){
+    var dot = $('lang-dot'), text = $('lang-badge-text');
+    dot.classList.remove('fingilish','english','persian');
+    if (persianConverted) { dot.classList.add('persian'); text.textContent='Persian → Fingilish (auto)'; return; }
+    if (!hasInput) { text.textContent='Start typing to detect the language'; return; }
+    if (res.lang==='fingilish') { dot.classList.add('fingilish'); text.textContent='Fingilish detected — Persian in Latin script'; }
+    else if (res.lang==='english') { dot.classList.add('english'); text.textContent='English detected'; }
+    else if (res.lang==='mixed') { text.textContent='Mixed signal — could be either'; }
+    else { text.textContent='Not enough signal to tell'; }
+  }
+  var morseState = { mode:'encode' };
+  function updateMorse(){
+    var inputEl=$('morse-input'), outputEl=$('morse-output'), hintEl=$('morse-hint');
+    var normRow=$('morse-normalized-row'), normEl=$('morse-normalized');
+    hintEl.classList.remove('error');
+    if (morseState.mode === 'encode') {
+      var raw = inputEl.value;
+      if (!raw.trim()) { outputEl.value=''; normRow.hidden=true; hintEl.textContent=''; updateLangBadge({}, false, false); return; }
+      var hadPersian = PERSIAN_RE.test(raw);
+      var latin = toFingilish(raw);
+      updateLangBadge(detectLang(latin), latin.trim().length>0, hadPersian);
+      var upper = latin.toUpperCase().replace(/\s+/g,' ').trim();
+      normRow.hidden=false; normEl.textContent=upper;
+      var skipped = new Set();
+      var morse = upper.split(' ').map(function(word){
+        return word.split('').map(function(ch){
+          if (MORSE_MAP[ch]) return MORSE_MAP[ch];
+          skipped.add(ch); return '';
+        }).filter(Boolean).join(' ');
+      }).join(' / ');
+      outputEl.value = morse;
+      var notes=[];
+      if (hadPersian) notes.push('Persian transliterated to Fingilish automatically.');
+      if (skipped.size) notes.push('Skipped unsupported characters: ' + Array.from(skipped).join(' '));
+      hintEl.textContent = notes.join(' ');
+    } else {
+      normRow.hidden=true;
+      var trimmed = inputEl.value.trim();
+      if (!trimmed) { outputEl.value=''; updateLangBadge({}, false, false); hintEl.textContent=''; return; }
+      if (!/^[.\-\/\s]+$/.test(trimmed)) {
+        outputEl.value=''; hintEl.textContent="Only dots, dashes, spaces and / are allowed.";
+        hintEl.classList.add('error'); updateLangBadge({}, false, false); return;
+      }
+      var unknown=0;
+      var decoded = trimmed.split(/\s*\/\s*/).filter(Boolean).map(function(word){
+        return word.trim().split(/\s+/).filter(Boolean).map(function(code){
+          var ch = MORSE_REV[code];
+          if (!ch) { unknown++; return ''; }
+          return ch;
+        }).join('');
+      }).join(' ');
+      outputEl.value = decoded;
+      hintEl.textContent = unknown ? (unknown + ' unknown group(s) ignored.') : '';
+      updateLangBadge(detectLang(decoded), decoded.trim().length>0, false);
+    }
+  }
+  $('morse-input').addEventListener('input', updateMorse);
+  document.querySelectorAll('#panel-morse .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      morseState.mode = b.dataset.mode;
+      document.querySelectorAll('#panel-morse .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      $('morse-input').placeholder = morseState.mode==='encode'
+        ? 'e.g. Man khoob hastam  —  or type «من خوب هستم»'
+        : 'e.g. -- .- -. / -.- .... --- --- -... / .... .- ... - .- --';
+      updateMorse(); pulse($('panel-morse'));
+    });
+  });
+  $('morse-swap').addEventListener('click', function(){
+    var i=$('morse-input'), o=$('morse-output'), t=i.value; i.value=o.value; o.value=t;
+    morseState.mode = morseState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-morse .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===morseState.mode); });
+    updateMorse();
+  });
+  bindClear('morse-clear', function(){ $('morse-input').value=''; updateMorse(); });
+  bindCopy('morse-copy', function(){ return $('morse-output').value; });
+
+  // Morse audio
+  var audioCtx = null;
+  function ensureAudio(){ if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if (audioCtx.state==='suspended') audioCtx.resume(); return audioCtx; }
+  function playMorse(str){
+    var ctx = ensureAudio();
+    var unit = 1.2/15;
+    var words = str.trim().split(/\s*\/\s*/).filter(Boolean);
+    var t = ctx.currentTime + 0.15;
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type='sine'; osc.frequency.value=620; gain.gain.value=0;
+    osc.connect(gain).connect(ctx.destination); osc.start();
+    var events=[];
+    words.forEach(function(word){
+      word.trim().split(/\s+/).filter(Boolean).forEach(function(letter){
+        for (var i=0;i<letter.length;i++){
+          var sym = letter[i], dur = sym==='-' ? unit*3 : unit;
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.35, t+0.005);
+          gain.gain.setValueAtTime(0.35, t+dur-0.005);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+          events.push({ s:t, e:t+dur });
+          t += dur + unit;
+        }
+        t += unit*2;
+      });
+      t += unit*4;
+    });
+    osc.stop(t+0.1);
+    var lamp = $('morse-lamp'), base = ctx.currentTime;
+    events.forEach(function(ev){
+      setTimeout(function(){ lamp.classList.add('lit'); }, Math.max(0,(ev.s-base)*1000));
+      setTimeout(function(){ lamp.classList.remove('lit'); }, Math.max(0,(ev.e-base)*1000));
+    });
+  }
+  $('morse-play').addEventListener('click', function(){
+    var morse = (morseState.mode==='encode' ? $('morse-output').value : $('morse-input').value).trim();
+    if (!morse) { showToast('Nothing to play yet.'); return; }
+    if (!/^[.\-\/\s]+$/.test(morse)) { showToast('Only a dot-dash signal can be played.'); return; }
+    playMorse(morse);
+  });
+
+  // ============================================================
+  // HEX
+  // ============================================================
+  var hexState = { mode:'encode' };
+  function updateHex(){
+    var input=$('hex-input').value, out=$('hex-output'), hint=$('hex-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (hexState.mode==='encode') {
+      var bytes = new TextEncoder().encode(input);
+      out.value = Array.from(bytes).map(function(b){ return b.toString(16).padStart(2,'0'); }).join(' ');
+    } else {
+      var cleaned = input.replace(/\s+/g,'');
+      if (!/^[0-9a-fA-F]*$/.test(cleaned) || cleaned.length%2!==0) {
+        out.value=''; hint.textContent='Invalid hex — must be even number of hex digits.'; hint.classList.add('error'); return;
+      }
+      try {
+        var bytes2 = new Uint8Array(cleaned.length/2);
+        for (var i=0;i<bytes2.length;i++) bytes2[i] = parseInt(cleaned.substr(i*2,2),16);
+        out.value = new TextDecoder('utf-8',{fatal:false}).decode(bytes2);
+      } catch(e){ out.value=''; hint.textContent='Could not decode hex.'; hint.classList.add('error'); }
+    }
+  }
+  $('hex-input').addEventListener('input', updateHex);
+  document.querySelectorAll('#panel-hex .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      hexState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-hex .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateHex(); pulse($('panel-hex'));
+    });
+  });
+  $('hex-swap').addEventListener('click', function(){
+    var i=$('hex-input'), o=$('hex-output'), t=i.value; i.value=o.value; o.value=t;
+    hexState.mode = hexState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-hex .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===hexState.mode); });
+    updateHex();
+  });
+  bindClear('hex-clear', function(){ $('hex-input').value=''; updateHex(); });
+  bindCopy('hex-copy', function(){ return $('hex-output').value; });
+
+  // ============================================================
+  // CAESAR
+  // ============================================================
+  var caesarState = { mode:'encode' };
+  function caesarShift(text, shift, decrypt){
+    var s = decrypt ? (26 - (shift%26))%26 : (shift%26);
+    return text.replace(/[a-zA-Z]/g, function(ch){
+      var base = ch <= 'Z' ? 65 : 97;
+      return String.fromCharCode(((ch.charCodeAt(0)-base+s)%26)+base);
+    });
+  }
+  function updateCaesar(){
+    var shift = parseInt($('caesar-shift').value,10) || 3;
+    var input = $('caesar-input').value;
+    $('caesar-output').value = caesarShift(input, shift, caesarState.mode==='decode');
+  }
+  $('caesar-shift').addEventListener('input', updateCaesar);
+  $('caesar-input').addEventListener('input', updateCaesar);
+  document.querySelectorAll('#panel-caesar .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      caesarState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-caesar .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateCaesar(); pulse($('panel-caesar'));
+    });
+  });
+  $('caesar-swap').addEventListener('click', function(){
+    var i=$('caesar-input'), o=$('caesar-output'), t=i.value; i.value=o.value; o.value=t;
+    caesarState.mode = caesarState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-caesar .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===caesarState.mode); });
+    updateCaesar();
+  });
+  bindClear('caesar-clear', function(){ $('caesar-input').value=''; updateCaesar(); });
+  bindCopy('caesar-copy', function(){ return $('caesar-output').value; });
+
+  // ============================================================
+  // URL ENCODING
+  // ============================================================
+  var urlState = { mode:'encode' };
+  function updateUrl(){
+    var out=$('url-output'), hint=$('url-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (urlState.mode==='encode') {
+      out.value = encodeURIComponent($('url-input').value);
+    } else {
+      try { out.value = decodeURIComponent($('url-input').value); }
+      catch(e){ out.value=''; hint.textContent='Invalid percent-encoded string.'; hint.classList.add('error'); }
+    }
+  }
+  $('url-input').addEventListener('input', updateUrl);
+  document.querySelectorAll('#panel-url .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      urlState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-url .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateUrl(); pulse($('panel-url'));
+    });
+  });
+  $('url-swap').addEventListener('click', function(){
+    var i=$('url-input'), o=$('url-output'), t=i.value; i.value=o.value; o.value=t;
+    urlState.mode = urlState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-url .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===urlState.mode); });
+    updateUrl();
+  });
+  bindClear('url-clear', function(){ $('url-input').value=''; updateUrl(); });
+  bindCopy('url-copy', function(){ return $('url-output').value; });
+
+  // ============================================================
+  // HTML ENTITY
+  // ============================================================
+  var htmlState = { mode:'encode' };
+  function updateHtml(){
+    var out=$('html-output');
+    if (htmlState.mode==='encode') {
+      out.value = $('html-input').value.replace(/[\u00A0-\u9999<>&"']/g, function(ch){
+        return '&#' + ch.charCodeAt(0) + ';';
+      });
+    } else {
+      var txt = $('html-input').value;
+      var ta = document.createElement('textarea');
+      ta.innerHTML = txt; out.value = ta.value;
+    }
+  }
+  $('html-input').addEventListener('input', updateHtml);
+  document.querySelectorAll('#panel-html .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      htmlState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-html .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateHtml(); pulse($('panel-html'));
+    });
+  });
+  $('html-swap').addEventListener('click', function(){
+    var i=$('html-input'), o=$('html-output'), t=i.value; i.value=o.value; o.value=t;
+    htmlState.mode = htmlState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-html .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===htmlState.mode); });
+    updateHtml();
+  });
+  bindClear('html-clear', function(){ $('html-input').value=''; updateHtml(); });
+  bindCopy('html-copy', function(){ return $('html-output').value; });
+
+  // ============================================================
+  // BINARY
+  // ============================================================
+  var binState = { mode:'encode' };
+  function updateBinary(){
+    var out=$('binary-output'), hint=$('binary-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (binState.mode==='encode') {
+      var bytes = new TextEncoder().encode($('binary-input').value);
+      out.value = Array.from(bytes).map(function(b){ return b.toString(2).padStart(8,'0'); }).join(' ');
+    } else {
+      var cleaned = $('binary-input').value.replace(/\s+/g,'');
+      if (!/^[01]*$/.test(cleaned) || cleaned.length%8!==0) {
+        out.value=''; hint.textContent='Invalid binary — must be groups of 8 bits.'; hint.classList.add('error'); return;
+      }
+      try {
+        var bytes2 = new Uint8Array(cleaned.length/8);
+        for (var i=0;i<bytes2.length;i++) bytes2[i] = parseInt(cleaned.substr(i*8,8),2);
+        out.value = new TextDecoder('utf-8',{fatal:false}).decode(bytes2);
+      } catch(e){ out.value=''; hint.textContent='Could not decode binary.'; hint.classList.add('error'); }
+    }
+  }
+  $('binary-input').addEventListener('input', updateBinary);
+  document.querySelectorAll('#panel-binary .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      binState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-binary .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateBinary(); pulse($('panel-binary'));
+    });
+  });
+  $('binary-swap').addEventListener('click', function(){
+    var i=$('binary-input'), o=$('binary-output'), t=i.value; i.value=o.value; o.value=t;
+    binState.mode = binState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-binary .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===binState.mode); });
+    updateBinary();
+  });
+  bindClear('binary-clear', function(){ $('binary-input').value=''; updateBinary(); });
+  bindCopy('binary-copy', function(){ return $('binary-output').value; });
+
+  // ============================================================
+  // UNICODE ESCAPES
+  // ============================================================
+  var uniState = { mode:'encode' };
+  function updateUnicode(){
+    var out=$('unicode-output');
+    if (uniState.mode==='encode') {
+      out.value = Array.from($('unicode-input').value).map(function(ch){
+        return '\\u' + ch.charCodeAt(0).toString(16).padStart(4,'0');
+      }).join('');
+    } else {
+      try {
+        out.value = $('unicode-input').value.replace(/\\u([0-9a-fA-F]{4})/g, function(_,h){
+          return String.fromCharCode(parseInt(h,16));
+        });
+      } catch(e){ out.value=''; }
+    }
+  }
+  $('unicode-input').addEventListener('input', updateUnicode);
+  document.querySelectorAll('#panel-unicode .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      uniState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-unicode .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateUnicode(); pulse($('panel-unicode'));
+    });
+  });
+  $('unicode-swap').addEventListener('click', function(){
+    var i=$('unicode-input'), o=$('unicode-output'), t=i.value; i.value=o.value; o.value=t;
+    uniState.mode = uniState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-unicode .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===uniState.mode); });
+    updateUnicode();
+  });
+  bindClear('unicode-clear', function(){ $('unicode-input').value=''; updateUnicode(); });
+  bindCopy('unicode-copy', function(){ return $('unicode-output').value; });
+
+  // ============================================================
+  // ROT13
+  // ============================================================
+  function rot13(text){
+    return text.replace(/[a-zA-Z]/g, function(ch){
+      var base = ch <= 'Z' ? 65 : 97;
+      return String.fromCharCode(((ch.charCodeAt(0)-base+13)%26)+base);
+    });
+  }
+  function updateRot13(){ $('rot13-output').value = rot13($('rot13-input').value); }
+  $('rot13-input').addEventListener('input', updateRot13);
+  bindClear('rot13-clear', function(){ $('rot13-input').value=''; updateRot13(); });
+  bindCopy('rot13-copy', function(){ return $('rot13-output').value; });
+
+  // ============================================================
+  // VIGENERE
+  // ============================================================
+  var vigState = { mode:'encode' };
+  function vigenere(text, key, decrypt){
+    key = key.toUpperCase().replace(/[^A-Z]/g,'');
+    if (!key) return text;
+    var out='', ki=0;
+    for (var i=0;i<text.length;i++){
+      var ch = text.charAt(i);
+      if (/[a-zA-Z]/.test(ch)) {
+        var base = ch <= 'Z' ? 65 : 97;
+        var k = key.charCodeAt(ki%key.length) - 65;
+        var shift = decrypt ? (26-k) : k;
+        out += String.fromCharCode(((ch.charCodeAt(0)-base+shift)%26)+base);
+        ki++;
+      } else out += ch;
+    }
+    return out;
+  }
+  function updateVigenere(){
+    $('vigenere-output').value = vigenere($('vigenere-input').value, $('vigenere-key').value, vigState.mode==='decode');
+  }
+  $('vigenere-input').addEventListener('input', updateVigenere);
+  $('vigenere-key').addEventListener('input', updateVigenere);
+  document.querySelectorAll('#panel-vigenere .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      vigState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-vigenere .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateVigenere(); pulse($('panel-vigenere'));
+    });
+  });
+  $('vigenere-swap').addEventListener('click', function(){
+    var i=$('vigenere-input'), o=$('vigenere-output'), t=i.value; i.value=o.value; o.value=t;
+    vigState.mode = vigState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-vigenere .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===vigState.mode); });
+    updateVigenere();
+  });
+  bindClear('vigenere-clear', function(){ $('vigenere-input').value=''; updateVigenere(); });
+  bindCopy('vigenere-copy', function(){ return $('vigenere-output').value; });
+
+  // ============================================================
+  // ATBASH
+  // ============================================================
+  function atbash(text){
+    return text.replace(/[a-zA-Z]/g, function(ch){
+      var base = ch <= 'Z' ? 65 : 97;
+      return String.fromCharCode(base + (25 - (ch.charCodeAt(0)-base)));
+    });
+  }
+  function updateAtbash(){ $('atbash-output').value = atbash($('atbash-input').value); }
+  $('atbash-input').addEventListener('input', updateAtbash);
+  bindClear('atbash-clear', function(){ $('atbash-input').value=''; updateAtbash(); });
+  bindCopy('atbash-copy', function(){ return $('atbash-output').value; });
+
+  // ============================================================
+  // AFFINE
+  // ============================================================
+  var affState = { mode:'encode' };
+  function modInverse(a,m){
+    a = ((a%m)+m)%m;
+    for (var x=1;x<m;x++) if ((a*x)%m===1) return x;
+    return null;
+  }
+  function affineCipher(text, a, b, decrypt){
+    if (decrypt) {
+      var inv = modInverse(a,26);
+      if (inv===null) return 'Error: a is not coprime with 26.';
+    }
+    return text.replace(/[a-zA-Z]/g, function(ch){
+      var base = ch <= 'Z' ? 65 : 97;
+      var x = ch.charCodeAt(0)-base;
+      var y;
+      if (decrypt) y = ((modInverse(a,26) * (x - b)) % 26 + 26) % 26;
+      else y = (a * x + b) % 26;
+      return String.fromCharCode(base + y);
+    });
+  }
+  function updateAffine(){
+    var a = parseInt($('affine-a').value,10)||1, b = parseInt($('affine-b').value,10)||0;
+    $('affine-output').value = affineCipher($('affine-input').value, a, b, affState.mode==='decode');
+  }
+  $('affine-input').addEventListener('input', updateAffine);
+  $('affine-a').addEventListener('input', updateAffine);
+  $('affine-b').addEventListener('input', updateAffine);
+  document.querySelectorAll('#panel-affine .mode-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      affState.mode=btn.dataset.mode;
+      document.querySelectorAll('#panel-affine .mode-btn').forEach(function(x){ x.classList.toggle('active', x===btn); });
+      updateAffine(); pulse($('panel-affine'));
+    });
+  });
+  bindClear('affine-clear', function(){ $('affine-input').value=''; updateAffine(); });
+  bindCopy('affine-copy', function(){ return $('affine-output').value; });
+
+  // ============================================================
+  // PLAYFAIR
+  // ============================================================
+  var pfState = { mode:'encode' };
+  function buildPlayfairSquare(key){
+    key = key.toUpperCase().replace(/[^A-Z]/g,'').replace(/J/g,'I');
+    var seen = {}, square = [];
+    for (var i=0;i<key.length;i++) if (!seen[key[i]]) { seen[key[i]]=1; square.push(key[i]); }
+    for (var j=65;j<=90;j++){
+      var ch = String.fromCharCode(j);
+      if (ch==='J') continue;
+      if (!seen[ch]) { seen[ch]=1; square.push(ch); }
+    }
+    var grid = [];
+    for (var r=0;r<5;r++) grid.push(square.slice(r*5, r*5+5));
+    return grid;
+  }
+  function playfair(text, key, decrypt){
+    var grid = buildPlayfairSquare(key);
+    var pos = {};
+    for (var r=0;r<5;r++) for (var c=0;c<5;c++) pos[grid[r][c]] = { r:r, c:c };
+    var clean = text.toUpperCase().replace(/[^A-Z]/g,'').replace(/J/g,'I');
+    var pairs = [];
+    for (var i=0;i<clean.length;i+=2){
+      var a = clean[i], b = clean[i+1];
+      if (!b) { b='X'; }
+      if (a===b) { pairs.push([a,'X']); i--; }
+      else pairs.push([a,b]);
+    }
+    var out='';
+    pairs.forEach(function(p){
+      var p1 = pos[p[0]], p2 = pos[p[1]];
+      var r1, c1, r2, c2;
+      if (decrypt) {
+        r1 = p1.r; c1 = (p1.c+4)%5;
+        r2 = p2.r; c2 = (p2.c+4)%5;
+      } else {
+        r1 = p1.r; c1 = (p1.c+1)%5;
+        r2 = p2.r; c2 = (p2.c+1)%5;
+      }
+      if (p1.r===p2.r) {
+        out += grid[r1][c1] + grid[r2][c2];
+      } else if (p1.c===p2.c) {
+        var rr1 = decrypt ? (p1.r+4)%5 : (p1.r+1)%5;
+        var rr2 = decrypt ? (p2.r+4)%5 : (p2.r+1)%5;
+        out += grid[rr1][p1.c] + grid[rr2][p2.c];
+      } else {
+        out += grid[p1.r][p2.c] + grid[p2.r][p1.c];
+      }
+    });
+    return out;
+  }
+  function updatePlayfair(){
+    $('playfair-output').value = playfair($('playfair-input').value, $('playfair-key').value, pfState.mode==='decode');
+  }
+  $('playfair-input').addEventListener('input', updatePlayfair);
+  $('playfair-key').addEventListener('input', updatePlayfair);
+  document.querySelectorAll('#panel-playfair .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      pfState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-playfair .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updatePlayfair(); pulse($('panel-playfair'));
+    });
+  });
+  bindClear('playfair-clear', function(){ $('playfair-input').value=''; updatePlayfair(); });
+  bindCopy('playfair-copy', function(){ return $('playfair-output').value; });
+
+  // ============================================================
+  // XOR
+  // ============================================================
+  var xorState = { mode:'encode' };
+  function xorCipher(text, key){
+    if (!key) return '';
+    var out = [];
+    for (var i=0;i<text.length;i++){
+      out.push((text.charCodeAt(i) ^ key.charCodeAt(i%key.length)) & 0xff);
+    }
+    return out.map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+  function xorDecipher(hex, key){
+    if (!key) return '';
+    var cleaned = hex.replace(/\s+/g,'');
+    if (!/^[0-9a-fA-F]*$/.test(cleaned) || cleaned.length%2!==0) return '';
+    var out='';
+    for (var i=0;i<cleaned.length;i+=2){
+      var b = parseInt(cleaned.substr(i,2),16);
+      out += String.fromCharCode(b ^ key.charCodeAt((i/2)%key.length));
+    }
+    return out;
+  }
+  function updateXor(){
+    var key = $('xor-key').value;
+    if (xorState.mode==='encode') $('xor-output').value = xorCipher($('xor-input').value, key);
+    else $('xor-output').value = xorDecipher($('xor-input').value, key);
+  }
+  $('xor-input').addEventListener('input', updateXor);
+  $('xor-key').addEventListener('input', updateXor);
+  document.querySelectorAll('#panel-xor .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      xorState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-xor .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateXor(); pulse($('panel-xor'));
+    });
+  });
+  $('xor-swap').addEventListener('click', function(){
+    var i=$('xor-input'), o=$('xor-output'), t=i.value; i.value=o.value; o.value=t;
+    xorState.mode = xorState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-xor .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===xorState.mode); });
+    updateXor();
+  });
+  bindClear('xor-clear', function(){ $('xor-input').value=''; updateXor(); });
+  bindCopy('xor-copy', function(){ return $('xor-output').value; });
+
+  // ============================================================
+  // AES (CryptoJS)
+  // ============================================================
+  var aesState = { mode:'encode' };
+  function updateAes(){
+    var key = $('aes-key').value, input = $('aes-input').value;
+    var out=$('aes-output'), hint=$('aes-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (!key) { out.value=''; hint.textContent='Enter a passphrase.'; return; }
+    try {
+      if (aesState.mode==='encode') {
+        out.value = CryptoJS.AES.encrypt(input, key).toString();
+      } else {
+        var bytes = CryptoJS.AES.decrypt(input, key);
+        out.value = bytes.toString(CryptoJS.enc.Utf8);
+        if (!out.value) { hint.textContent='Wrong key or invalid ciphertext.'; hint.classList.add('error'); }
+      }
+    } catch(e){ out.value=''; hint.textContent='AES error: ' + e.message; hint.classList.add('error'); }
+  }
+  $('aes-input').addEventListener('input', updateAes);
+  $('aes-key').addEventListener('input', updateAes);
+  document.querySelectorAll('#panel-aes .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      aesState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-aes .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateAes(); pulse($('panel-aes'));
+    });
+  });
+  $('aes-swap').addEventListener('click', function(){
+    var i=$('aes-input'), o=$('aes-output'), t=i.value; i.value=o.value; o.value=t;
+    aesState.mode = aesState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-aes .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===aesState.mode); });
+    updateAes();
+  });
+  bindClear('aes-clear', function(){ $('aes-input').value=''; updateAes(); });
+  bindCopy('aes-copy', function(){ return $('aes-output').value; });
+
+  // ============================================================
+  // DES / 3DES (CryptoJS — TripleDES)
+  // ============================================================
+  var desState = { mode:'encode' };
+  function updateDes(){
+    var key = $('des-key').value, input = $('des-input').value;
+    var out=$('des-output'), hint=$('des-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (!key) { out.value=''; hint.textContent='Enter a passphrase.'; return; }
+    try {
+      if (desState.mode==='encode') {
+        out.value = CryptoJS.TripleDES.encrypt(input, key).toString();
+      } else {
+        var bytes = CryptoJS.TripleDES.decrypt(input, key);
+        out.value = bytes.toString(CryptoJS.enc.Utf8);
+        if (!out.value) { hint.textContent='Wrong key or invalid ciphertext.'; hint.classList.add('error'); }
+      }
+    } catch(e){ out.value=''; hint.textContent='DES error: ' + e.message; hint.classList.add('error'); }
+  }
+  $('des-input').addEventListener('input', updateDes);
+  $('des-key').addEventListener('input', updateDes);
+  document.querySelectorAll('#panel-des .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      desState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-des .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateDes(); pulse($('panel-des'));
+    });
+  });
+  $('des-swap').addEventListener('click', function(){
+    var i=$('des-input'), o=$('des-output'), t=i.value; i.value=o.value; o.value=t;
+    desState.mode = desState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-des .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===desState.mode); });
+    updateDes();
+  });
+  bindClear('des-clear', function(){ $('des-input').value=''; updateDes(); });
+  bindCopy('des-copy', function(){ return $('des-output').value; });
+
+  // ============================================================
+  // CHACHA20 (CryptoJS — falls back to a simple XOR-based stream)
+  // ============================================================
+  var chaState = { mode:'encode' };
+  // CryptoJS does not include ChaCha20; we implement a simple counter-mode
+  // keystream using SHA-256 as the PRF for demonstration purposes.
+  function chachaKeystream(key, len){
+    var out = '';
+    var counter = 0;
+    while (out.length < len) {
+      var block = CryptoJS.SHA256(key + ':' + counter).toString(CryptoJS.enc.Hex);
+      out += block;
+      counter++;
+    }
+    return out.slice(0, len);
+  }
+  function chachaCrypt(text, key){
+    if (!key) return '';
+    var stream = chachaKeystream(key, text.length);
+    var out = '';
+    for (var i=0;i<text.length;i++){
+      out += String.fromCharCode(text.charCodeAt(i) ^ stream.charCodeAt(i));
+    }
+    return btoa(out);
+  }
+  function chachaDecrypt(b64, key){
+    if (!key) return '';
+    try {
+      var binary = atob(b64);
+      var stream = chachaKeystream(key, binary.length);
+      var out = '';
+      for (var i=0;i<binary.length;i++){
+        out += String.fromCharCode(binary.charCodeAt(i) ^ stream.charCodeAt(i));
+      }
+      return out;
+    } catch(e){ return ''; }
+  }
+  function updateCha(){
+    var key = $('chacha-key').value;
+    if (chaState.mode==='encode') $('chacha-output').value = chachaCrypt($('chacha-input').value, key);
+    else $('chacha-output').value = chachaDecrypt($('chacha-input').value, key);
+  }
+  $('chacha-input').addEventListener('input', updateCha);
+  $('chacha-key').addEventListener('input', updateCha);
+  document.querySelectorAll('#panel-chacha .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      chaState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-chacha .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateCha(); pulse($('panel-chacha'));
+    });
+  });
+  $('chacha-swap').addEventListener('click', function(){
+    var i=$('chacha-input'), o=$('chacha-output'), t=i.value; i.value=o.value; o.value=t;
+    chaState.mode = chaState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-chacha .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===chaState.mode); });
+    updateCha();
+  });
+  bindClear('chacha-clear', function(){ $('chacha-input').value=''; updateCha(); });
+  bindCopy('chacha-copy', function(){ return $('chacha-output').value; });
+
+  // ============================================================
+  // RSA (Web Crypto API)
+  // ============================================================
+  var rsaKeys = null;
+  var rsaState = { mode:'encode' };
+  function rsaGenKeys(){
+    return crypto.subtle.generateKey(
+      { name:'RSA-OAEP', modulusLength:2048, publicExponent:new Uint8Array([1,0,1]), hash:'SHA-256' },
+      true, ['encrypt','decrypt']
+    ).then(function(pair){ rsaKeys = pair; return pair; });
+  }
+  function exportKey(key, fmt){
+    return crypto.subtle.exportKey(fmt, key).then(function(data){
+      if (fmt === 'spki') {
+        return '-----BEGIN PUBLIC KEY-----\n' + btoa(String.fromCharCode.apply(null, new Uint8Array(data))).replace(/(.{64})/g,'$1\n') + '\n-----END PUBLIC KEY-----';
+      }
+      return '-----BEGIN PRIVATE KEY-----\n' + btoa(String.fromCharCode.apply(null, new Uint8Array(data))).replace(/(.{64})/g,'$1\n') + '\n-----END PRIVATE KEY-----';
+    });
+  }
+  $('rsa-gen').addEventListener('click', function(){
+    $('rsa-hint').textContent = 'Generating keypair…';
+    rsaGenKeys().then(function(){
+      return Promise.all([ exportKey(rsaKeys.publicKey,'spki'), exportKey(rsaKeys.privateKey,'pkcs8') ]);
+    }).then(function(pems){
+      $('rsa-public').value = pems[0];
+      $('rsa-private').value = pems[1];
+      $('rsa-hint').textContent = 'Keypair generated (2048-bit RSA-OAEP).';
+      showToast('RSA keypair generated.');
+    }).catch(function(e){
+      $('rsa-hint').textContent = 'Key generation failed: ' + e.message;
+      $('rsa-hint').classList.add('error');
+    });
+  });
+  $('rsa-export').addEventListener('click', function(){
+    if (!rsaKeys) { showToast('Generate a keypair first.'); return; }
+    var text = 'PUBLIC KEY:\n' + $('rsa-public').value + '\n\nPRIVATE KEY:\n' + $('rsa-private').value;
+    copyText(text);
+  });
+  function updateRsa(){
+    var input = $('rsa-input').value;
+    var out=$('rsa-output'), hint=$('rsa-hint');
+    hint.classList.remove('error');
+    if (!rsaKeys) { hint.textContent='Generate a keypair first.'; return; }
+    var enc = new TextEncoder();
+    if (rsaState.mode==='encode') {
+      crypto.subtle.encrypt({ name:'RSA-OAEP' }, rsaKeys.publicKey, enc.encode(input))
+        .then(function(buf){
+          out.value = btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+          hint.textContent = 'Encrypted with public key.';
+        }).catch(function(e){ hint.textContent='Encryption failed: '+e.message; hint.classList.add('error'); });
+    } else {
+      try {
+        var bytes = Uint8Array.from(atob(input), function(c){ return c.charCodeAt(0); });
+        crypto.subtle.decrypt({ name:'RSA-OAEP' }, rsaKeys.privateKey, bytes)
+          .then(function(buf){
+            out.value = new TextDecoder().decode(buf);
+            hint.textContent = 'Decrypted with private key.';
+          }).catch(function(e){ out.value=''; hint.textContent='Decryption failed.'; hint.classList.add('error'); });
+      } catch(e){ out.value=''; hint.textContent='Invalid Base64 input.'; hint.classList.add('error'); }
+    }
+  }
+  $('rsa-input').addEventListener('input', updateRsa);
+  document.querySelectorAll('#panel-rsa .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      rsaState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-rsa .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateRsa(); pulse($('panel-rsa'));
+    });
+  });
+  $('rsa-swap').addEventListener('click', function(){
+    var i=$('rsa-input'), o=$('rsa-output'), t=i.value; i.value=o.value; o.value=t;
+    rsaState.mode = rsaState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-rsa .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===rsaState.mode); });
+    updateRsa();
+  });
+  bindClear('rsa-clear', function(){ $('rsa-input').value=''; updateRsa(); });
+  bindCopy('rsa-copy', function(){ return $('rsa-output').value; });
+
+  // ============================================================
+  // ECC (Web Crypto API — ECDH-based keypair)
+  // ============================================================
+  var eccKeys = null;
+  var eccState = { mode:'encode' };
+  $('ecc-gen').addEventListener('click', function(){
+    $('ecc-hint').textContent = 'Generating EC keypair…';
+    crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveKey','deriveBits'])
+      .then(function(pair){
+        eccKeys = pair;
+        return Promise.all([
+          crypto.subtle.exportKey('spki', pair.publicKey),
+          crypto.subtle.exportKey('pkcs8', pair.privateKey)
+        ]);
+      }).then(function(keys){
+        $('ecc-public').value = btoa(String.fromCharCode.apply(null, new Uint8Array(keys[0])));
+        $('ecc-private').value = btoa(String.fromCharCode.apply(null, new Uint8Array(keys[1])));
+        $('ecc-hint').textContent = 'EC keypair generated (P-256 ECDH).';
+        showToast('EC keypair generated.');
+      }).catch(function(e){
+        $('ecc-hint').textContent = 'Key generation failed: ' + e.message;
+        $('ecc-hint').classList.add('error');
+      });
+  });
+  $('ecc-export').addEventListener('click', function(){
+    if (!eccKeys) { showToast('Generate a keypair first.'); return; }
+    copyText('PUBLIC:\n' + $('ecc-public').value + '\n\nPRIVATE:\n' + $('ecc-private').value);
+  });
+  function updateEcc(){
+    var out=$('ecc-output'), hint=$('ecc-hint');
+    hint.classList.remove('error');
+    if (!eccKeys) { hint.textContent='Generate a keypair first.'; return; }
+    if (eccState.mode==='encode') {
+      // Demonstrate with a derived AES key (ECDH is key agreement, not encryption)
+      out.value = '[ECDH is a key-exchange algorithm — use Diffie-Hellman panel to derive a shared secret]';
+      hint.textContent = 'ECC keypair ready. Use the DH panel for key agreement.';
+    } else {
+      out.value = '[Verification would use the peer\'s public key]';
+      hint.textContent = 'ECC verification panel.';
+    }
+  }
+  document.querySelectorAll('#panel-ecc .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      eccState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-ecc .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateEcc(); pulse($('panel-ecc'));
+    });
+  });
+  bindClear('ecc-clear', function(){ $('ecc-input').value=''; updateEcc(); });
+  bindCopy('ecc-copy', function(){ return $('ecc-output').value; });
+
+  // ============================================================
+  // DIFFIE-HELLMAN
+  // ============================================================
+  var dhKeys = null;
+  $('dh-gen').addEventListener('click', function(){
+    $('dh-hint').textContent = 'Generating DH keypair…';
+    crypto.subtle.generateKey({ name:'ECDH', namedCurve:'P-256' }, true, ['deriveKey','deriveBits'])
+      .then(function(pair){
+        dhKeys = pair;
+        return Promise.all([
+          crypto.subtle.exportKey('spki', pair.publicKey),
+          crypto.subtle.exportKey('pkcs8', pair.privateKey)
+        ]);
+      }).then(function(keys){
+        $('dh-public').value = btoa(String.fromCharCode.apply(null, new Uint8Array(keys[0])));
+        $('dh-private').value = btoa(String.fromCharCode.apply(null, new Uint8Array(keys[1])));
+        $('dh-hint').textContent = 'DH keypair generated. Paste a peer public key to derive a shared secret.';
+        showToast('DH keypair generated.');
+      }).catch(function(e){
+        $('dh-hint').textContent = 'Key generation failed: ' + e.message;
+        $('dh-hint').classList.add('error');
+      });
+  });
+  $('dh-output').addEventListener('input', function(){});
+  $('dh-peer').addEventListener('input', function(){
+    if (!dhKeys) { $('dh-hint').textContent='Generate a keypair first.'; return; }
+    var peerB64 = $('dh-peer').value.trim();
+    if (!peerB64) { $('dh-output').value=''; return; }
+    try {
+      var peerBytes = Uint8Array.from(atob(peerB64), function(c){ return c.charCodeAt(0); });
+      crypto.subtle.importKey('spki', peerBytes, { name:'ECDH', namedCurve:'P-256' }, false, [])
+        .then(function(peerKey){
+          return crypto.subtle.deriveBits({ name:'ECDH', public:peerKey }, dhKeys.privateKey, 256);
+        }).then(function(bits){
+          var hex = Array.from(new Uint8Array(bits)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+          $('dh-output').value = hex;
+          $('dh-hint').textContent = 'Shared secret derived successfully.';
+          $('dh-hint').classList.remove('error');
+        }).catch(function(e){
+          $('dh-hint').textContent = 'Could not derive — check the peer key.';
+          $('dh-hint').classList.add('error');
+        });
+    } catch(e){
+      $('dh-hint').textContent = 'Invalid Base64 peer key.';
+      $('dh-hint').classList.add('error');
+    }
+  });
+  bindClear('dh-clear', function(){ $('dh-peer').value=''; $('dh-output').value=''; $('dh-hint').textContent=''; });
+  bindCopy('dh-copy', function(){ return $('dh-output').value; });
+
+  // ============================================================
+  // HASHING (hash-wasm)
+  // ============================================================
+  var hashState = { mode:'hash' };
+  function updateHash(){
+    var algo = $('hash-algo').value, input = $('hash-input').value;
+    var out=$('hash-output'), hint=$('hash-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (!input) { out.value=''; return; }
+    var fn;
+    switch(algo){
+      case 'MD5': fn = hashwasm.md5; break;
+      case 'SHA-1': fn = hashwasm.sha1; break;
+      case 'SHA-256': fn = hashwasm.sha256; break;
+      case 'SHA-512': fn = hashwasm.sha512; break;
+      case 'SHA-384': fn = hashwasm.sha384; break;
+      case 'RIPEMD-160': fn = hashwasm.ripemd160; break;
+      default: fn = hashwasm.sha256;
+    }
+    fn(input).then(function(hex){
+      out.value = hex;
+      if (hashState.mode === 'verify') {
+        var expected = $('hash-compare').value.trim().toLowerCase();
+        var actual = hex.toLowerCase();
+        var match = expected && expected === actual;
+        $('hash-compare-hint').textContent = !expected ? 'Paste an expected hash above to compare.' :
+          (match ? '✓ Match — the hashes are identical.' : '✗ No match — the hashes differ.');
+        $('hash-compare-hint').style.color = match ? '#5ee39b' : '#ff8d8d';
+      }
+    }).catch(function(e){
+      out.value=''; hint.textContent='Hashing failed: '+e.message; hint.classList.add('error');
+    });
+  }
+  $('hash-input').addEventListener('input', updateHash);
+  $('hash-algo').addEventListener('change', updateHash);
+  $('hash-compare').addEventListener('input', updateHash);
+  document.querySelectorAll('#panel-hash .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      hashState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-hash .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      $('hash-compare-row').hidden = (hashState.mode !== 'verify');
+      updateHash(); pulse($('panel-hash'));
+    });
+  });
+  bindClear('hash-clear', function(){ $('hash-input').value=''; $('hash-compare').value=''; updateHash(); });
+  bindCopy('hash-copy', function(){ return $('hash-output').value; });
+
+  // ============================================================
+  // PASSWORD HASHING (bcrypt / scrypt / Argon2id via hash-wasm)
+  // ============================================================
+  var pwState = { mode:'hash' };
+  function genSalt(len){
+    var arr = new Uint8Array(len || 16);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+  function updatePw(){
+    var algo = $('pw-algo').value;
+    var pw = $('pw-input').value;
+    var salt = $('pw-salt').value.trim();
+    var out=$('pw-output'), hint=$('pw-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (!pw) { out.value=''; hint.textContent='Enter a password.'; return; }
+    var usedSalt = salt || genSalt(16);
+    if (!salt) $('pw-salt').value = usedSalt;
+    var promise;
+    if (algo === 'bcrypt') {
+      promise = hashwasm.bcrypt(pw, { salt: usedSalt }).then(function(h){ return h; });
+    } else if (algo === 'scrypt') {
+      promise = hashwasm.scrypt({ password: pw, salt: usedSalt, N:16384, r:8, p:1, dkLen:32 })
+        .then(function(h){ return h; });
+    } else {
+      promise = hashwasm.argon2id({ password: pw, salt: usedSalt, parallelism:1, iterations:3, memorySize:4096, hashLength:32 })
+        .then(function(h){ return h; });
+    }
+    promise.then(function(hash){
+      out.value = hash;
+      hint.textContent = 'Salt: ' + usedSalt;
+      if (pwState.mode === 'verify') {
+        var expected = $('pw-expected').value.trim();
+        $('pw-verify-hint').textContent = expected ? (expected === hash ? '✓ Match' : '✗ No match') : 'Paste expected hash above.';
+        $('pw-verify-hint').style.color = (expected === hash) ? '#5ee39b' : '#ff8d8d';
+      }
+    }).catch(function(e){
+      out.value=''; hint.textContent='Hashing failed: '+e.message; hint.classList.add('error');
+    });
+  }
+  $('pw-input').addEventListener('input', updatePw);
+  $('pw-salt').addEventListener('input', updatePw);
+  $('pw-algo').addEventListener('change', updatePw);
+  $('pw-expected').addEventListener('input', updatePw);
+  $('pw-hash').addEventListener('click', updatePw);
+  document.querySelectorAll('#panel-bcrypt .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      pwState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-bcrypt .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      $('pw-verify-row').hidden = (pwState.mode !== 'verify');
+      updatePw(); pulse($('panel-bcrypt'));
+    });
+  });
+  bindClear('pw-clear', function(){ $('pw-input').value=''; $('pw-salt').value=''; $('pw-output').value=''; $('pw-hint').textContent=''; });
+  bindCopy('pw-copy', function(){ return $('pw-output').value; });
+
+  // ============================================================
+  // COMPRESSION (gzip via CompressionStream)
+  // ============================================================
+  var gzState = { mode:'encode' };
+  function updateGzip(){
+    var input = $('gzip-input').value;
+    var out=$('gzip-output'), hint=$('gzip-hint');
+    hint.classList.remove('error'); hint.textContent='';
+    if (!input) { out.value=''; return; }
+    if (typeof CompressionStream === 'undefined') {
+      out.value=''; hint.textContent='CompressionStream is not supported in this browser.'; hint.classList.add('error'); return;
+    }
+    var bytes = new TextEncoder().encode(input);
+    var stream;
+    if (gzState.mode==='encode') {
+      stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+    } else {
+      try {
+        var raw = Uint8Array.from(atob(input), function(c){ return c.charCodeAt(0); });
+        stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'));
+      } catch(e){ out.value=''; hint.textContent='Invalid Base64 gzip data.'; hint.classList.add('error'); return; }
+    }
+    new Response(stream).arrayBuffer().then(function(buf){
+      var arr = new Uint8Array(buf);
+      if (gzState.mode==='encode') {
+        out.value = btoa(String.fromCharCode.apply(null, arr));
+        hint.textContent = input.length + ' chars → ' + arr.length + ' bytes compressed';
+      } else {
+        out.value = new TextDecoder().decode(arr);
+      }
+    }).catch(function(e){
+      out.value=''; hint.textContent='Compression error: '+e.message; hint.classList.add('error');
+    });
+  }
+  $('gzip-input').addEventListener('input', updateGzip);
+  document.querySelectorAll('#panel-compression .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      gzState.mode=b.dataset.mode;
+      document.querySelectorAll('#panel-compression .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      updateGzip(); pulse($('panel-compression'));
+    });
+  });
+  $('gzip-swap').addEventListener('click', function(){
+    var i=$('gzip-input'), o=$('gzip-output'), t=i.value; i.value=o.value; o.value=t;
+    gzState.mode = gzState.mode==='encode'?'decode':'encode';
+    document.querySelectorAll('#panel-compression .mode-btn').forEach(function(x){ x.classList.toggle('active', x.dataset.mode===gzState.mode); });
+    updateGzip();
+  });
+  bindClear('gzip-clear', function(){ $('gzip-input').value=''; updateGzip(); });
+  bindCopy('gzip-copy', function(){ return $('gzip-output').value; });
+
+  // ============================================================
+  // STEGANOGRAPHY (LSB in PNG canvas)
+  // ============================================================
+  $('steg-hide').addEventListener('click', function(){
+    var file = $('steg-image').files[0];
+    var msg = $('steg-message').value;
+    if (!file) { showToast('Choose a PNG cover image first.'); return; }
+    if (!msg) { showToast('Enter a message to hide.'); return; }
+    var img = new Image();
+    img.onload = function(){
+      var cvs = document.createElement('canvas');
+      cvs.width = img.width; cvs.height = img.height;
+      var ctx = cvs.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      var data = ctx.getImageData(0,0,cvs.width,cvs.height);
+      var pixels = data.data;
+      var message = msg + '\0';
+      var bits = [];
+      for (var i=0;i<message.length;i++){
+        var code = message.charCodeAt(i);
+        for (var b=7;b>=0;b--) bits.push((code >> b) & 1);
+      }
+      if (bits.length > pixels.length/4 * 1) {
+        $('steg-hint').textContent = 'Message too long for this image.';
+        $('steg-hint').classList.add('error');
+        return;
+      }
+      for (var j=0;j<bits.length;j++){
+        pixels[j*4] = (pixels[j*4] & 0xFE) | bits[j];
+      }
+      ctx.putImageData(data,0,0);
+      cvs.toBlob(function(blob){
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'hidden.png'; a.click();
+        URL.revokeObjectURL(url);
+        $('steg-hint').textContent = 'Message hidden — download started.';
+        $('steg-hint').classList.remove('error');
+        showToast('Steganographic image downloaded.');
+      }, 'image/png');
+    };
+    img.src = URL.createObjectURL(file);
+  });
+  $('steg-extract').addEventListener('click', function(){
+    var file = $('steg-extract-image').files[0];
+    if (!file) { showToast('Choose an image first.'); return; }
+    var img = new Image();
+    img.onload = function(){
+      var cvs = document.createElement('canvas');
+      cvs.width = img.width; cvs.height = img.height;
+      var ctx = cvs.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      var data = ctx.getImageData(0,0,cvs.width,cvs.height).data;
+      var bits = [];
+      for (var i=0;i<data.length;i+=4) bits.push(data[i] & 1);
+      var chars = [];
+      for (var j=0;j+8<=bits.length;j+=8){
+        var code = 0;
+        for (var b=0;b<8;b++) code = (code<<1) | bits[j+b];
+        if (code === 0) break;
+        chars.push(String.fromCharCode(code));
+      }
+      $('steg-output').value = chars.join('') || '(no hidden message found)';
+      $('steg-hint').textContent = 'Extraction complete.';
+    };
+    img.src = URL.createObjectURL(file);
+  });
+  bindClear('steg-clear', function(){
+    $('steg-image').value=''; $('steg-message').value=''; $('steg-hint').textContent='';
+  });
+  document.querySelectorAll('#panel-steganography .mode-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('#panel-steganography .mode-btn').forEach(function(x){ x.classList.toggle('active', x===b); });
+      $('steg-extract-row').hidden = (b.dataset.mode !== 'decode');
+      pulse($('panel-steganography'));
+    });
+  });
+
+  // ============================================================
+  // INITIAL PAINT
+  // ============================================================
+  showPanel('home');
+  // pre-fill some panels so they show something useful
+  $('hex-input').value = 'Hello';
+  updateHex();
+  $('caesar-input').value = 'ATTACK AT DAWN';
+  updateCaesar();
+  $('url-input').value = 'https://example.com/search?q=hello world';
+  updateUrl();
+  $('html-input').value = '<div class="box">Hello & welcome</div>';
+  updateHtml();
+  $('binary-input').value = 'Hello';
+  updateBinary();
+  $('unicode-input').value = 'Hello 世界';
+  updateUnicode();
+  $('rot13-input').value = 'Hello World';
+  updateRot13();
+  $('vigenere-input').value = 'ATTACKATDAWN';
+  $('vigenere-key').value = 'LEMON';
+  updateVigenere();
+  $('atbash-input').value = 'HELLO';
+  updateAtbash();
+  $('affine-input').value = 'AFFINE CIPHER';
+  updateAffine();
+  $('playfair-input').value = 'HIDETHEGOLDINTHETREE';
+  $('playfair-key').value = 'PLAYFAIR';
+  updatePlayfair();
+  $('xor-input').value = 'Message';
+  $('xor-key').value = 'secret';
+  updateXor();
+  $('aes-key').value = 'my secret key';
+  updateAes();
+  $('des-key').value = 'secret key';
+  updateDes();
+  $('chacha-key').value = 'my passphrase';
+  updateCha();
+  $('hash-input').value = 'Hello';
+  updateHash();
+  $('pw-input').value = '';
+  $('gzip-input').value = 'Hello Hello Hello Hello Hello';
+  updateGzip();
+
+})();
+</script>
+</body>
+</html>
