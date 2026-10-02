@@ -195,6 +195,7 @@ python3 -m http.server 8000
 ## 📞 راه‌های ارتباطی
 
 - **X (Twitter):** [@RITM_Editz](https://x.com/@RITM_Editz)
+- - **X (Twitter):** [@Dahenavadi26](https://x.com/@Dahenavadi26)
 - **Email:** [RITM.FreeLancer@gmail.com](mailto:RITM.FreeLancer@gmail.com)
 
 برای گزارش باگ، پیشنهاد ویژگی جدید، یا همکاری — از طریق هر یک از این راه‌ها در تماس باشید.
