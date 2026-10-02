@@ -7,6 +7,18 @@
 <meta name="description" content="Encode, decode and cipher text with Base64, Hex, Morse, Caesar, Vigenère, AES, RSA, hashing and much more — all locally in your browser.">
 <meta name="theme-color" content="#070b12">
 <meta name="color-scheme" content="dark">
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- iOS PWA Support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Signal">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+
+<!-- Microsoft Tiles -->
+<meta name="msapplication-TileColor" content="#070b12">
+<meta name="msapplication-TileImage" content="assets/icon-192.png">
 <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 <link rel="apple-touch-icon" href="assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3187,6 +3199,81 @@
   }
 
 })();
+</script>
+<script>
+// ===================== PWA SERVICE WORKER =====================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js')
+      .then(function(reg) {
+        console.log('✅ Service Worker registered:', reg.scope);
+      })
+      .catch(function(err) {
+        console.warn('⚠️ Service Worker registration failed:', err);
+      });
+  });
+}
+
+// ===================== INSTALL PROMPT =====================
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredPrompt = e;
+  // نمایش دکمه نصب
+  showInstallButton();
+});
+
+function showInstallButton() {
+  if (document.getElementById('pwa-install-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'pwa-install-btn';
+  btn.innerHTML = '📲 نصب اپ';
+  btn.style.cssText = `
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom, 20px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: #ffa94d;
+    color: #1c1304;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 30px -8px rgba(255,169,77,.6);
+    animation: slideUp .4s ease;
+  `;
+  btn.onclick = async function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      btn.remove();
+    }
+    deferredPrompt = null;
+  };
+  document.body.appendChild(btn);
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideUp {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to   { opacity: 1; transform: translate(-50%, 0); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+window.addEventListener('appinstalled', function() {
+  console.log('✅ PWA installed');
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.remove();
+  deferredPrompt = null;
+});
 </script>
 </body>
 </html>
