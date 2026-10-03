@@ -10,6 +10,9 @@ p<!DOCTYPE html>
 
 <meta name="author" content="RITM">
 <meta name="robots" content="index, follow">
+<meta name="theme-color" content="#070b12">
+<meta name="application-name" content="Signals">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 
 <link rel="canonical" href="https://ritm-fre.github.io/Signals-/">
 <link rel="manifest" href="manifest.json">
@@ -72,27 +75,6 @@ p<!DOCTYPE html>
     text-size-adjust:100%;
     scroll-behavior:smooth;
   }
- <main>
-    <h1>Signals — Signal Console</h1>
-
-    <p>
-        Signals is a web-based signal console for encoding,
-        decoding, Morse code and digital signal tools.
-    </p>
-
-    <h2>Signal Encoding Tools</h2>
-
-    <p>
-        Convert text into different signal and encoding formats
-        directly in your browser.
-    </p>
-
-    <h2>Morse Code</h2>
-
-    <p>
-        Encode and decode Morse code quickly using the Signals console.
-    </p>
-</main>
   body{
     margin:0;
     min-height:100%;
@@ -595,6 +577,28 @@ p<!DOCTYPE html>
     *, *::before, *::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
   }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Signals",
+  "alternateName": "Signal Console",
+  "url": "https://ritm-fre.github.io/Signals-/",
+  "description": "A browser-based signal console for encoding, decoding, Morse code, ciphers, hashing, compression and steganography.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any",
+  "browserRequirements": "Requires JavaScript",
+  "author": {
+    "@type": "Person",
+    "name": "RITM"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
 </head>
 <body>
 
@@ -662,12 +666,12 @@ p<!DOCTYPE html>
 </header>
 
 <div class="stage">
-  <main class="console">
+  <main class="console" aria-label="Signals encoding and cryptography tools">
 
     <section class="panel" id="panel-home" data-panel="home">
       <div class="home-hero">
         <img class="hero-logo" src="assets/logo.svg" alt="Signal" width="80" height="80">
-        <h2>Signal Console</h2>
+        <h1>Signal Console</h1>
         <p>All your encoding, cipher and hashing tools in one place — running entirely in your browser. Nothing is ever uploaded.</p>
         <div class="home-cta">
           <button class="btn btn-primary" data-nav="base64" type="button">Start with Base64 →</button>
